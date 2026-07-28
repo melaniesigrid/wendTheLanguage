@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Editor swap files
+*.swp
+*.swo
+*~
+
+# Node / local tooling
+node_modules/
+.npm/
