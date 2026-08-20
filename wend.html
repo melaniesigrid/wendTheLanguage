@@ -1,0 +1,2916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wend — the language that can walk back</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #0b1110;
+    --bg1: #101916;
+    --bg2: #15211c;
+    --bg3: #1c2b24;
+    --line: #24382f;
+    --ink: #dde8dc;
+    --dim: #7e948a;
+    --faint: #4f645b;
+    --copper: #d98a52;
+    --copper-soft: #ecab77;
+    --foam: #7fd6b2;
+    --salmon: #e0917c;
+    --leaf: #a4cd8b;
+    --lav: #bcaade;
+    --err: #e06060;
+    --serif: "Instrument Serif", Georgia, serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(1100px 650px at 80% -10%, rgba(127,214,178,0.05), transparent 60%),
+      radial-gradient(900px 600px at -5% 110%, rgba(217,138,82,0.06), transparent 60%),
+      var(--bg0);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 12px 22px 10px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(127,214,178,0.035), transparent);
+  }
+  .brand { display: flex; align-items: baseline; gap: 14px; margin-right: auto; }
+  .wordmark { position: relative; }
+  .wordmark h1 {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    font-size: 36px; letter-spacing: 1px; line-height: 1;
+    color: var(--copper-soft);
+    text-shadow: 0 0 26px rgba(217,138,82,.4);
+  }
+  .wordmark svg { position: absolute; left: 2px; bottom: -7px; width: 92px; height: 8px; }
+  .brand p { color: var(--dim); font-size: 12.5px; font-style: italic; font-family: var(--serif); letter-spacing: .4px; }
+
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  select {
+    background: var(--bg2); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px;
+    font-family: var(--mono); font-size: 12.5px;
+    padding: 7px 10px; cursor: pointer; outline: none;
+    max-width: 230px;
+  }
+  select:hover { border-color: var(--copper); }
+  button {
+    background: var(--bg2); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px;
+    font-family: var(--mono); font-size: 12.5px;
+    padding: 7px 12px; cursor: pointer;
+    transition: border-color .15s, background .15s, transform .06s, opacity .15s;
+    white-space: nowrap;
+  }
+  button:hover { border-color: var(--copper); background: var(--bg3); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .3; cursor: default; pointer-events: none; }
+  button.primary {
+    background: linear-gradient(180deg, #e5985e, #bd6f38);
+    color: #221207; font-weight: 600; border-color: #9c5c2e;
+    box-shadow: 0 0 18px rgba(217,138,82,.28);
+  }
+  button.primary:hover { background: linear-gradient(180deg, #f0a56a, #cc7c42); }
+  .speed { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 11px; padding: 0 2px; }
+  input[type="range"] { accent-color: var(--copper); cursor: pointer; }
+  .speed input[type="range"] { width: 84px; }
+
+  /* ---------- layout ---------- */
+  main {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(310px, 5fr);
+    gap: 13px;
+    padding: 13px 18px 8px;
+  }
+  .panel {
+    background: var(--bg1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    min-height: 0; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .panel-title {
+    font-family: var(--serif); font-style: italic;
+    color: var(--dim); font-size: 14px; letter-spacing: .6px;
+    padding: 8px 14px 7px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px; flex: none;
+  }
+  .panel-title .right { margin-left: auto; font-family: var(--mono); font-style: normal; font-size: 11px; color: var(--faint); }
+
+  /* ---------- editor ---------- */
+  .editor { flex: 1; display: flex; min-height: 0; position: relative; }
+  .gutter {
+    flex: none; width: 46px; overflow: hidden;
+    background: rgba(0,0,0,.2);
+    border-right: 1px solid var(--line);
+    color: var(--faint); text-align: right;
+    padding: 12px 8px 12px 0;
+    font-size: 14px; line-height: 1.55;
+    user-select: none;
+  }
+  .gutter .errln { color: var(--err); font-weight: 600; }
+  .code-wrap { position: relative; flex: 1; min-width: 0; }
+  .code-wrap pre, .code-wrap textarea {
+    position: absolute; inset: 0;
+    font-family: var(--mono); font-size: 14px; line-height: 1.55;
+    padding: 12px 16px 40vh 14px;
+    white-space: pre; word-wrap: normal;
+    tab-size: 2;
+  }
+  .code-wrap pre { overflow: hidden; pointer-events: none; margin: 0; }
+  .code-wrap textarea {
+    background: transparent; border: none; outline: none; resize: none;
+    color: transparent; caret-color: var(--foam);
+    overflow: auto;
+  }
+  .code-wrap textarea::selection { background: rgba(127,214,178,.22); color: transparent; }
+
+  .tk-kw  { color: var(--copper-soft); }
+  .tk-lit { color: var(--lav); }
+  .tk-num { color: var(--salmon); }
+  .tk-str { color: var(--leaf); }
+  .tk-com { color: var(--faint); font-style: italic; }
+  .tk-id  { color: var(--ink); }
+  .tk-op  { color: #94ab9c; }
+  .tk-bad { color: var(--err); }
+  .mk-err {
+    text-decoration: underline wavy var(--err) 1.5px;
+    text-underline-offset: 3px;
+    background: rgba(224,96,96,.13);
+    border-radius: 2px;
+  }
+  .mk-exec { background: rgba(127,214,178,.22); border-radius: 2px; }
+
+  .diag {
+    flex: none;
+    border-top: 1px solid rgba(224,96,96,.35);
+    background: rgba(224,96,96,.08);
+    color: #f0a8a0;
+    padding: 8px 14px; font-size: 12.5px; line-height: 1.5;
+    display: flex; gap: 9px; align-items: baseline;
+  }
+  .diag .glyph { color: var(--err); flex: none; }
+  .diag.hidden { display: none; }
+
+  /* ---------- right column ---------- */
+  .right { display: grid; grid-template-rows: minmax(0, 10fr) minmax(0, 11fr); gap: 13px; min-height: 0; }
+
+  #console { flex: 1; overflow-y: auto; padding: 10px 14px; font-size: 13.5px; line-height: 1.6; }
+  #console .p  { color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+  #console .sys { color: var(--faint); font-style: italic; font-size: 12px; }
+  #console .res { color: var(--copper-soft); font-style: italic; }
+  #console .err { color: #f09a8a; white-space: pre-wrap; }
+  #console:empty::before {
+    content: "Nothing has flowed past yet. Press ▶ Run.";
+    color: var(--faint); font-style: italic; font-size: 12.5px;
+  }
+  #console table {
+    border-collapse: collapse; margin: 7px 0; font-size: 12.5px;
+  }
+  #console th, #console td {
+    border: 1px solid var(--line); padding: 4px 10px; text-align: left;
+    white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+  }
+  #console th {
+    background: var(--bg3); color: var(--foam);
+    font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  #console td { color: var(--ink); }
+  #console tr:nth-child(even) td { background: rgba(127,214,178,.03); }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex: none; padding: 0 8px; }
+  .tabs button {
+    background: none; border: none; border-radius: 0;
+    color: var(--dim); padding: 8px 11px 7px; font-size: 13px;
+    border-bottom: 2px solid transparent;
+    font-family: var(--serif); font-style: italic; letter-spacing: .5px;
+  }
+  .tabs button.active { color: var(--foam); border-bottom-color: var(--foam); }
+  .tabs button:hover { background: none; }
+  .tabbody { flex: 1; overflow-y: auto; padding: 10px 14px; min-height: 0; }
+  .mtitle {
+    color: var(--faint); font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase;
+    margin: 10px 0 6px;
+  }
+  .mtitle:first-child { margin-top: 0; }
+  .frame {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 4px 8px; border-radius: 5px; font-size: 12.5px; color: var(--dim);
+  }
+  .frame.top { background: rgba(127,214,178,.09); color: var(--ink); outline: 1px solid rgba(127,214,178,.22); }
+  .frame .fname { color: var(--foam); }
+  .frame.top .fname { font-weight: 600; }
+  .frame .fline { margin-left: auto; color: var(--faint); font-size: 11px; }
+  .scopebox { margin-bottom: 8px; border-left: 2px solid var(--line); padding-left: 10px; }
+  .scopebox .slabel { color: var(--dim); font-size: 12px; font-style: italic; margin-bottom: 3px; font-family: var(--serif); }
+  .kv { display: flex; gap: 10px; font-size: 12.5px; padding: 1.5px 0; }
+  .kv .k { color: var(--copper-soft); flex: none; }
+  .kv .v { color: var(--ink); opacity: .88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .empty-note { color: var(--faint); font-style: italic; font-size: 12px; }
+
+  /* history */
+  .hvar { margin-bottom: 4px; border: 1px solid transparent; border-radius: 6px; }
+  .hvar > .hname {
+    display: flex; gap: 8px; align-items: baseline; cursor: pointer;
+    padding: 4px 8px; border-radius: 6px; font-size: 12.5px;
+  }
+  .hvar > .hname:hover { background: var(--bg3); }
+  .hvar .nm { color: var(--copper-soft); font-weight: 600; }
+  .hvar .cnt { margin-left: auto; color: var(--faint); font-size: 11px; }
+  .hvar .arrow { color: var(--faint); font-size: 10px; width: 10px; }
+  .hentries { display: none; padding: 2px 0 4px 20px; }
+  .hvar.open .hentries { display: block; }
+  .hentry {
+    display: flex; gap: 10px; font-size: 12px; padding: 2px 8px;
+    border-radius: 4px; cursor: pointer; color: var(--dim);
+  }
+  .hentry:hover { background: rgba(127,214,178,.08); color: var(--ink); }
+  .hentry.here { background: rgba(217,138,82,.14); color: var(--ink); outline: 1px solid rgba(217,138,82,.3); }
+  .hentry .hv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hentry .hl { margin-left: auto; color: var(--faint); flex: none; font-size: 10.5px; }
+
+  /* data tab */
+  #tab-history { display: none; }
+  #tab-data { display: none; flex-direction: column; }
+  #dataText {
+    flex: 1; min-height: 0; resize: none; outline: none;
+    background: var(--bg2); color: var(--leaf);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+    padding: 10px 12px; white-space: pre;
+  }
+  #dataStatus { flex: none; color: var(--faint); font-size: 11.5px; padding: 7px 2px 0; font-style: italic; }
+  #dataStatus b { color: var(--foam); font-style: normal; }
+
+  /* guide */
+  #tab-guide { display: none; }
+  #tab-guide h3 {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    color: var(--copper-soft); font-size: 15px; margin: 14px 0 6px;
+  }
+  #tab-guide h3:first-child { margin-top: 0; }
+  #tab-guide p { color: var(--dim); font-size: 12.5px; line-height: 1.55; margin-bottom: 6px; }
+  #tab-guide pre {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 12px; font-size: 12.5px; line-height: 1.55;
+    overflow-x: auto; margin: 6px 0 10px;
+  }
+  #tab-guide code { color: var(--copper-soft); background: var(--bg3); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+
+  /* ---------- timeline ---------- */
+  .timeline {
+    flex: none;
+    display: flex; align-items: center; gap: 12px;
+    margin: 0 18px 8px;
+    padding: 9px 16px;
+    background: linear-gradient(180deg, var(--bg2), var(--bg1));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.3);
+  }
+  .timeline.off { opacity: .45; }
+  .timeline .tlabel {
+    font-family: var(--serif); font-style: italic; color: var(--foam);
+    font-size: 14px; letter-spacing: .5px; flex: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .timeline .tlabel .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--foam); box-shadow: 0 0 8px var(--foam); }
+  .timeline.off .tlabel .dot { background: var(--faint); box-shadow: none; }
+  #scrub { flex: 1; height: 26px; }
+  .timeline .pos { flex: none; color: var(--dim); font-size: 11.5px; min-width: 150px; text-align: right; }
+  .timeline .pos b { color: var(--copper-soft); font-weight: 600; }
+  .tbtns { display: flex; gap: 4px; flex: none; }
+  .tbtns button { padding: 5px 10px; font-size: 12px; }
+
+  /* ---------- footer ---------- */
+  footer {
+    flex: none;
+    display: flex; align-items: center; gap: 18px;
+    padding: 7px 22px;
+    border-top: 1px solid var(--line);
+    color: var(--faint); font-size: 11.5px;
+    background: rgba(0,0,0,.25);
+  }
+  footer .state { display: flex; align-items: center; gap: 7px; }
+  footer .lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); transition: all .2s; }
+  footer .lamp.on { background: var(--copper); box-shadow: 0 0 8px var(--copper); }
+  footer .lamp.err { background: var(--err); box-shadow: 0 0 8px var(--err); }
+  footer .lamp.done { background: var(--foam); box-shadow: 0 0 8px var(--foam); }
+  footer .credit { margin-left: auto; font-family: var(--serif); font-style: italic; }
+  kbd {
+    background: var(--bg3); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-family: var(--mono);
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 2px solid var(--bg1); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    main { grid-template-columns: 1fr; grid-auto-rows: minmax(280px, auto); }
+    .right { grid-template-rows: minmax(220px, auto) minmax(280px, auto); }
+    .timeline { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header>
+  <div class="brand">
+    <div class="wordmark">
+      <h1>Wend</h1>
+      <svg viewBox="0 0 92 8" fill="none"><path d="M1 4 C 9 -2, 17 10, 25 4 S 41 -2, 49 4 S 65 10, 73 4 S 89 -2, 91 4" stroke="#7fd6b2" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></svg>
+    </div>
+    <p>the language that can walk back the way it came</p>
+  </div>
+  <div class="controls">
+    <select id="examples" title="Open an example"></select>
+    <button id="btnRun" class="primary" title="Run and record the journey (Ctrl+Enter)">▶ Run</button>
+    <button id="btnPlay" title="Replay the recorded journey step by step" disabled>▷ Play</button>
+    <button id="btnReset" title="Clear everything">↺ Reset</button>
+    <div class="speed"><span>slow</span><input type="range" id="speed" min="0" max="100" value="55"><span>fast</span></div>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-title">Editor <span class="right" id="posInfo"></span></div>
+    <div class="editor">
+      <div class="gutter" id="gutter"></div>
+      <div class="code-wrap">
+        <pre id="hl" aria-hidden="true"></pre>
+        <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+      </div>
+    </div>
+    <div class="diag hidden" id="diag"><span class="glyph">◈</span><span id="diagMsg"></span></div>
+  </section>
+
+  <section class="right">
+    <div class="panel">
+      <div class="panel-title">Output <span class="right" id="outInfo"></span></div>
+      <div id="console"></div>
+    </div>
+    <div class="panel">
+      <div class="tabs">
+        <button data-tab="machine" class="active">Machine</button>
+        <button data-tab="history">History</button>
+        <button data-tab="data">Data</button>
+        <button data-tab="guide">Guide</button>
+      </div>
+      <div class="tabbody" id="tab-machine">
+        <div class="mtitle">Call stack</div>
+        <div id="stack"><div class="empty-note">Nothing is running.</div></div>
+        <div class="mtitle">Bindings in scope</div>
+        <div id="scopes"><div class="empty-note">Run, then drag the timeline to any moment.</div></div>
+      </div>
+      <div class="tabbody" id="tab-history">
+        <div class="mtitle">Every value each variable ever held</div>
+        <div id="historyList"><div class="empty-note">Run the program first — every assignment is remembered. Click any entry to travel to that exact moment.</div></div>
+      </div>
+      <div class="tabbody" id="tab-data">
+        <textarea id="dataText" spellcheck="false"></textarea>
+        <div id="dataStatus"></div>
+      </div>
+      <div class="tabbody" id="tab-guide">
+        <h3>What is Wend?</h3>
+        <p>A small scripting language where <b>time is a feature</b>. Every run is recorded and deterministic — drag the timeline to any step, watch the stack and bindings as they were, and open History to see every value a variable ever held. Built from scratch: lexer, parser, interpreter, all in this one file.</p>
+
+        <h3>Values &amp; variables</h3>
+        <pre class="sample">let n = 42
+let ok = true
+let nothing = nil
+let s = "interpolation: {n + 1}"   // escape a brace with \{</pre>
+
+        <h3>Control flow</h3>
+        <p><code>if</code> is an expression; blocks yield their last value. Only <code>false</code> and <code>nil</code> are falsy.</p>
+        <pre class="sample">let mood = if n > 10 { "plenty" } else { "few" }
+for i in 1..5 { print(i) }        // inclusive ranges
+while n > 0 { n -= 1 }</pre>
+
+        <h3>Pattern matching</h3>
+        <pre class="sample">match value {
+  0 -> "zero"
+  1..9 -> "a digit"
+  [x, ...rest] -> "starts with {x}"
+  { name, age } -> "{name} is {age}"
+  _ -> "anything else"
+}
+let [a, b] = [1, 2]               // destructuring
+let { name } = { name: "Ada" }</pre>
+
+        <h3>Functions &amp; pipelines</h3>
+        <p><code>a |> f(b)</code> means <code>f(a, b)</code>. Last expression returns implicitly.</p>
+        <pre class="sample">fn double(x) { x * 2 }
+1..10 |> filter(fn (n) { n % 2 == 0 })
+     |> map(double)
+     |> sum() |> print()</pre>
+
+        <h3>Data wrangling</h3>
+        <p>The Data tab feeds your program as <code>input</code> (JSON or CSV, parsed automatically).</p>
+        <pre class="sample">input |> filter(fn (o) { o.status == "paid" })
+      |> group_by(fn (o) { o.region })
+table(rows)     // pretty table in the output
+to_csv(rows)    // and back out again</pre>
+
+        <h3>Built-ins</h3>
+        <p><code>print</code> <code>table</code> <code>len</code> <code>push</code> <code>pop</code> <code>keys</code> <code>values</code> <code>has</code> <code>map</code> <code>filter</code> <code>reduce</code> <code>sum</code> <code>avg</code> <code>sort</code> <code>sort_by</code> <code>group_by</code> <code>count_by</code> <code>unique</code> <code>flatten</code> <code>zip</code> <code>take</code> <code>drop</code> <code>first</code> <code>last</code> <code>find</code> <code>any</code> <code>all</code> <code>slice</code> <code>reverse</code> <code>join</code> <code>split</code> <code>chars</code> <code>replace</code> <code>starts_with</code> <code>ends_with</code> <code>upper</code> <code>lower</code> <code>trim</code> <code>parse_json</code> <code>to_json</code> <code>parse_csv</code> <code>to_csv</code> <code>abs</code> <code>floor</code> <code>ceil</code> <code>round</code> <code>sqrt</code> <code>pow</code> <code>min</code> <code>max</code> <code>random</code> <code>num</code> <code>str</code> <code>type</code></p>
+
+        <h3>Time travel</h3>
+        <p>Runs are deterministic (even <code>random()</code> is seeded per run), which is what makes perfect replay possible. The timeline scrubber replays the recorded run to any step; History indexes every assignment. If a run exceeds 200,000 steps the timeline switches off and it just runs.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="timeline off" id="timeline">
+  <span class="tlabel"><span class="dot"></span>Timeline</span>
+  <div class="tbtns">
+    <button id="btnHome" title="To the beginning">⏮</button>
+    <button id="btnBack" title="One step back (Ctrl+,)">◂</button>
+    <button id="btnFwd" title="One step forward (Ctrl+.)">▸</button>
+    <button id="btnEnd" title="To the end">⏭</button>
+  </div>
+  <input type="range" id="scrub" min="0" max="0" value="0" disabled>
+  <span class="pos" id="tpos">not recorded yet</span>
+</div>
+
+<footer>
+  <span class="state"><span class="lamp" id="lamp"></span><span id="stateText">idle</span></span>
+  <span id="stepCount"></span>
+  <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run · <kbd>Ctrl</kbd>+<kbd>,</kbd>/<kbd>.</kbd> travel</span>
+  <span class="credit">every step recorded · every run replayable · hand-made from nothing</span>
+</footer>
+
+<script>/* ============================================================
+   WEND — the language that can walk back the way it came
+   Core: lexer, Pratt parser, steppable generator interpreter
+   with deterministic replay, write-tracking (variable history),
+   pattern matching, and data-wrangling builtins.
+   Works in browser (window.Wend) and Node (module.exports).
+   ============================================================ */
+(function (global) {
+  "use strict";
+
+  /* ---------------- errors ---------------- */
+  class WendError extends Error {
+    constructor(kind, message, start, end, line, col) {
+      super(message);
+      this.kind = kind; // 'syntax' | 'runtime'
+      this.start = start; this.end = end;
+      this.line = line; this.col = col;
+    }
+  }
+  function synErr(msg, start, end, line, col) {
+    return new WendError("syntax", msg, start, end, line, col);
+  }
+  function rtErr(msg, node) {
+    return new WendError("runtime", msg, node ? node.start : 0, node ? node.end : 0,
+      node ? node.line : 1, node ? node.col : 1);
+  }
+
+  /* ---------------- lexer ---------------- */
+  const KEYWORDS = new Set(["let", "fn", "if", "else", "while", "for", "in",
+    "return", "break", "continue", "true", "false", "nil", "and", "or", "not", "match"]);
+
+  const isDigit = c => c >= "0" && c <= "9";
+  const isIdStart = c => /[A-Za-z_]/.test(c);
+  const isIdChar = c => /[A-Za-z0-9_]/.test(c);
+
+  // token: {type, value, start, end, line, col}
+  // types: NUM STR IDENT KW OP NL EOF ERROR COMMENT(tolerant only)
+  function lex(src, base = 0, baseLine = 1, baseCol = 1, tolerant = false) {
+    const toks = [];
+    let i = 0, line = baseLine, col = baseCol;
+    const n = src.length;
+    const push = (type, value, start, end, l, c) =>
+      toks.push({ type, value, start: base + start, end: base + end, line: l, col: c });
+    const fail = (msg, start, end, l, c) => {
+      if (tolerant) { push("ERROR", src.slice(start, end), start, end, l, c); return; }
+      throw synErr(msg, base + start, base + end, l, c);
+    };
+    while (i < n) {
+      const c = src[i];
+      const startL = line, startC = col, start = i;
+      if (c === "\n") { push("NL", "\n", i, i + 1, line, col); i++; line++; col = 1; continue; }
+      if (c === " " || c === "\t" || c === "\r") { i++; col++; continue; }
+      if (c === "/" && src[i + 1] === "/") {
+        let j = i;
+        while (j < n && src[j] !== "\n") j++;
+        if (tolerant) push("COMMENT", src.slice(i, j), i, j, line, col);
+        col += j - i; i = j; continue;
+      }
+      if (isDigit(c)) {
+        let j = i, seenDot = false;
+        while (j < n) {
+          const d = src[j];
+          if (isDigit(d)) { j++; continue; }
+          if (d === "." && !seenDot && isDigit(src[j + 1])) { seenDot = true; j++; continue; }
+          break;
+        }
+        push("NUM", parseFloat(src.slice(i, j)), i, j, startL, startC);
+        col += j - i; i = j; continue;
+      }
+      if (isIdStart(c)) {
+        let j = i;
+        while (j < n && isIdChar(src[j])) j++;
+        const word = src.slice(i, j);
+        push(KEYWORDS.has(word) ? "KW" : "IDENT", word, i, j, startL, startC);
+        col += j - i; i = j; continue;
+      }
+      if (c === '"') {
+        // string with {expr} interpolation
+        const parts = []; // {kind:'str',value} | {kind:'expr',src,offset,line,col}
+        let buf = "", j = i + 1, l = line, cc = col + 1;
+        let closed = false;
+        while (j < n) {
+          const d = src[j];
+          if (d === '"') { closed = true; j++; cc++; break; }
+          if (d === "\n") break;
+          if (d === "\\") {
+            const e = src[j + 1];
+            const map = { n: "\n", t: "\t", '"': '"', "\\": "\\", "{": "{", "}": "}" };
+            if (e in map) { buf += map[e]; j += 2; cc += 2; continue; }
+            fail("Unknown escape \\" + (e || ""), j, j + 2, l, cc);
+            j += 2; cc += 2; continue;
+          }
+          if (d === "{") {
+            if (buf) { parts.push({ kind: "str", value: buf }); buf = ""; }
+            // scan to matching } (brace-depth aware, quote aware)
+            let depth = 1, k = j + 1, kl = l, kc = cc + 1;
+            const exOff = k, exLine = kl, exCol = kc;
+            let inner = "";
+            while (k < n && depth > 0) {
+              const g = src[k];
+              if (g === '"') { // nested string: skip it
+                inner += g; k++; kc++;
+                while (k < n && src[k] !== '"' && src[k] !== "\n") {
+                  if (src[k] === "\\") { inner += src[k]; k++; kc++; }
+                  inner += src[k]; k++; kc++;
+                }
+                if (src[k] === '"') { inner += '"'; k++; kc++; }
+                continue;
+              }
+              if (g === "{") depth++;
+              if (g === "}") { depth--; if (depth === 0) break; }
+              if (g === "\n") break;
+              inner += g; k++; kc++;
+            }
+            if (src[k] !== "}") {
+              fail("Unclosed { in string interpolation", j, k, l, cc);
+              j = k; break;
+            }
+            parts.push({ kind: "expr", src: inner, offset: base + exOff, line: exLine, col: exCol });
+            cc += (k + 1 - j); j = k + 1; continue;
+          }
+          buf += d; j++; cc++;
+        }
+        if (!closed) {
+          fail("Unterminated string", i, j, startL, startC);
+          if (buf) parts.push({ kind: "str", value: buf });
+          push("STR", { parts }, i, j, startL, startC);
+          col += j - i; i = j; continue;
+        }
+        if (buf) parts.push({ kind: "str", value: buf });
+        push("STR", { parts }, i, j, startL, startC);
+        col += j - i; i = j; continue;
+      }
+      // operators
+      if (src.slice(i, i + 3) === "...") {
+        push("OP", "...", i, i + 3, startL, startC); i += 3; col += 3; continue;
+      }
+      const two = src.slice(i, i + 2);
+      const twos = ["==", "!=", "<=", ">=", "|>", "..", "+=", "-=", "->"];
+      if (twos.includes(two)) {
+        push("OP", two, i, i + 2, startL, startC); i += 2; col += 2; continue;
+      }
+      if ("+-*/%<>=(){}[],.:!".includes(c)) {
+        push("OP", c, i, i + 1, startL, startC); i++; col++; continue;
+      }
+      fail("Unexpected character '" + c + "'", i, i + 1, startL, startC);
+      i++; col++;
+    }
+    push("EOF", null, n, n, line, col);
+    return toks;
+  }
+
+  // Filter newlines for the parser: collapse & drop where continuation is obvious.
+  const PREV_DROP = new Set(["(", "[", "{", ",", "+", "-", "*", "/", "%", "==", "!=",
+    "<", ">", "<=", ">=", "=", "|>", "..", "+=", "-=", ":", ".", "->", "..."]);
+  const PREV_DROP_KW = new Set(["and", "or", "not", "else", "in", "return_NO"]);
+  const NEXT_DROP = new Set(["|>", ".", "+", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", ".."]);
+  const NEXT_DROP_KW = new Set(["and", "or", "else"]);
+
+  function filterNewlines(toks) {
+    const out = [];
+    const stack = []; // innermost open bracket decides whether NLs matter
+    for (let idx = 0; idx < toks.length; idx++) {
+      const t = toks[idx];
+      if (t.type === "OP") {
+        if (t.value === "(" || t.value === "[" || t.value === "{") stack.push(t.value);
+        else if (t.value === ")" || t.value === "]" || t.value === "}") stack.pop();
+      }
+      if (t.type !== "NL") { out.push(t); continue; }
+      const top = stack[stack.length - 1];
+      if (top === "(" || top === "[") continue; // inside parens/brackets: free-form
+      const prev = out[out.length - 1];
+      let next = null;
+      for (let j = idx + 1; j < toks.length; j++) {
+        if (toks[j].type !== "NL") { next = toks[j]; break; }
+      }
+      if (prev && ((prev.type === "OP" && PREV_DROP.has(prev.value)) ||
+                   (prev.type === "KW" && PREV_DROP_KW.has(prev.value)))) continue;
+      if (next && ((next.type === "OP" && NEXT_DROP.has(next.value)) ||
+                   (next.type === "KW" && NEXT_DROP_KW.has(next.value)))) continue;
+      if (prev && prev.type === "NL") continue;
+      if (!prev || prev.type === "NL") continue;
+      out.push(t);
+    }
+    return out;
+  }
+
+  /* ---------------- parser ---------------- */
+  // Precedence
+  const PREC = { PIPE: 1, OR: 2, AND: 3, EQ: 4, CMP: 5, RANGE: 6, ADD: 7, MUL: 8, UNARY: 9, POST: 10 };
+
+  class Parser {
+    constructor(toks, src) { this.toks = toks; this.i = 0; this.src = src; }
+    peek(k = 0) { return this.toks[Math.min(this.i + k, this.toks.length - 1)]; }
+    next() { return this.toks[this.i++]; }
+    at(type, value) {
+      const t = this.peek();
+      return t.type === type && (value === undefined || t.value === value);
+    }
+    atOp(v) { return this.at("OP", v); }
+    atKw(v) { return this.at("KW", v); }
+    eat(type, value) { if (this.at(type, value)) return this.next(); return null; }
+    expect(type, value, what) {
+      const t = this.peek();
+      if (this.at(type, value)) return this.next();
+      throw synErr("Expected " + (what || value || type) + " but found " + describeTok(t),
+        t.start, Math.max(t.end, t.start + 1), t.line, t.col);
+    }
+    skipNL() { while (this.at("NL")) this.next(); }
+
+    parseProgram() {
+      const body = [];
+      this.skipNL();
+      while (!this.at("EOF")) {
+        body.push(this.parseStmt());
+        this.terminator();
+      }
+      return { type: "Program", body, start: 0, end: this.src.length, line: 1, col: 1 };
+    }
+
+    terminator() {
+      if (this.at("EOF") || this.atOp("}")) return;
+      const t = this.peek();
+      if (this.at("NL")) { this.skipNL(); return; }
+      throw synErr("Expected end of statement but found " + describeTok(t),
+        t.start, Math.max(t.end, t.start + 1), t.line, t.col);
+    }
+
+    parseStmt() {
+      this.skipNL();
+      const t = this.peek();
+      if (t.type === "KW") {
+        switch (t.value) {
+          case "let": return this.parseLet();
+          case "fn": {
+            // fn name(...) {...} is a declaration; `fn (` is an anonymous fn expression
+            const t2 = this.peek(1);
+            if (t2.type === "IDENT") return this.parseFnDecl();
+            break;
+          }
+          case "while": return this.parseWhile();
+          case "for": return this.parseFor();
+          case "return": return this.parseReturn();
+          case "break": { const k = this.next(); return { type: "Break", ...spanOf(k) }; }
+          case "continue": { const k = this.next(); return { type: "Continue", ...spanOf(k) }; }
+        }
+      }
+      // expression / assignment
+      const expr = this.parseExpr(0);
+      if (this.atOp("=") || this.atOp("+=") || this.atOp("-=")) {
+        const op = this.next();
+        if (!["Ident", "Index", "Member"].includes(expr.type)) {
+          throw synErr("Cannot assign to this expression", expr.start, expr.end, expr.line, expr.col);
+        }
+        const value = this.parseExpr(0);
+        return { type: "Assign", target: expr, op: op.value, value,
+          start: expr.start, end: value.end, line: expr.line, col: expr.col };
+      }
+      return { type: "ExprStmt", expr, ...spanOf(expr) };
+    }
+
+    parseLet() {
+      const kw = this.next();
+      if (this.atOp("[") || this.atOp("{")) {
+        const pattern = this.parsePattern();
+        this.expect("OP", "=", "'='");
+        const value = this.parseExpr(0);
+        return { type: "LetPattern", pattern, value,
+          start: kw.start, end: value.end, line: kw.line, col: kw.col };
+      }
+      const name = this.expect("IDENT", undefined, "a variable name");
+      this.expect("OP", "=", "'='");
+      const value = this.parseExpr(0);
+      return { type: "Let", name: name.value, nameStart: name.start, nameEnd: name.end,
+        value, start: kw.start, end: value.end, line: kw.line, col: kw.col };
+    }
+
+    /* patterns: literal | _ | name | a..b | [p, ..., ...rest] | {k, k: p} */
+    parsePattern() {
+      const t = this.peek();
+      if (t.type === "NUM") {
+        this.next();
+        if (this.atOp("..")) {
+          this.next();
+          const hi = this.expect("NUM", undefined, "a number to end the range");
+          return { type: "PatRange", from: t.value, to: hi.value,
+            start: t.start, end: hi.end, line: t.line, col: t.col };
+        }
+        return { type: "PatLit", value: t.value, ...spanOf(t) };
+      }
+      if (t.type === "OP" && t.value === "-" && this.peek(1).type === "NUM") {
+        this.next(); const n = this.next();
+        if (this.atOp("..")) {
+          this.next();
+          let neg = false;
+          if (this.atOp("-")) { this.next(); neg = true; }
+          const hi = this.expect("NUM", undefined, "a number to end the range");
+          return { type: "PatRange", from: -n.value, to: neg ? -hi.value : hi.value,
+            start: t.start, end: hi.end, line: t.line, col: t.col };
+        }
+        return { type: "PatLit", value: -n.value, start: t.start, end: n.end, line: t.line, col: t.col };
+      }
+      if (t.type === "STR") {
+        this.next();
+        const parts = t.value.parts;
+        if (parts.length > 1 || (parts[0] && parts[0].kind !== "str")) {
+          throw synErr("Patterns cannot use interpolated strings", t.start, t.end, t.line, t.col);
+        }
+        return { type: "PatLit", value: parts.length ? parts[0].value : "", ...spanOf(t) };
+      }
+      if (t.type === "KW" && ["true", "false", "nil"].includes(t.value)) {
+        this.next();
+        return { type: "PatLit", value: t.value === "nil" ? null : t.value === "true", ...spanOf(t) };
+      }
+      if (t.type === "IDENT") {
+        this.next();
+        if (t.value === "_") return { type: "PatWild", ...spanOf(t) };
+        return { type: "PatBind", name: t.value, ...spanOf(t) };
+      }
+      if (t.type === "OP" && t.value === "[") {
+        const open = this.next();
+        const items = []; let rest = null;
+        this.skipNL();
+        while (!this.atOp("]")) {
+          if (this.atOp("...")) {
+            this.next();
+            const name = this.expect("IDENT", undefined, "a name after '...'");
+            rest = name.value;
+            this.skipNL();
+            break;
+          }
+          items.push(this.parsePattern());
+          if (this.eat("OP", ",")) { this.skipNL(); continue; }
+          break;
+        }
+        this.skipNL();
+        const close = this.expect("OP", "]", "']'");
+        return { type: "PatArray", items, rest,
+          start: open.start, end: close.end, line: open.line, col: open.col };
+      }
+      if (t.type === "OP" && t.value === "{") {
+        const open = this.next();
+        const entries = [];
+        this.skipNL();
+        while (!this.atOp("}")) {
+          const key = this.expect("IDENT", undefined, "a key name");
+          let pat = null;
+          if (this.eat("OP", ":")) pat = this.parsePattern();
+          entries.push({ key: key.value, pat });
+          if (this.eat("OP", ",")) { this.skipNL(); continue; }
+          break;
+        }
+        this.skipNL();
+        const close = this.expect("OP", "}", "'}'");
+        return { type: "PatMap", entries,
+          start: open.start, end: close.end, line: open.line, col: open.col };
+      }
+      throw synErr("Expected a pattern but found " + describeTok(t),
+        t.start, Math.max(t.end, t.start + 1), t.line, t.col);
+    }
+
+    parseMatch() {
+      const kw = this.next(); // 'match'
+      const subject = this.parseExpr(0);
+      this.expect("OP", "{", "'{' to open the match arms");
+      const arms = [];
+      this.skipNL();
+      while (!this.atOp("}")) {
+        if (this.at("EOF")) throw synErr("Unclosed match — missing '}'", kw.start, kw.end, kw.line, kw.col);
+        const pattern = this.parsePattern();
+        this.expect("OP", "->", "'->' after the pattern");
+        let body;
+        if (this.atOp("{")) body = this.parseBlock();
+        else body = this.parseExpr(0);
+        arms.push({ pattern, body });
+        if (this.eat("OP", ",")) { this.skipNL(); continue; }
+        this.skipNL();
+      }
+      const close = this.next();
+      return { type: "Match", subject, arms,
+        start: kw.start, end: close.end, line: kw.line, col: kw.col };
+    }
+
+    parseFnDecl() {
+      const kw = this.next();
+      const name = this.expect("IDENT", undefined, "a function name");
+      const { params, body, end } = this.parseFnRest();
+      return { type: "FnDecl", name: name.value, params, body,
+        start: kw.start, end, line: kw.line, col: kw.col };
+    }
+
+    parseFnRest() {
+      this.expect("OP", "(", "'('");
+      const params = [];
+      this.skipNL();
+      if (!this.atOp(")")) {
+        for (;;) {
+          const p = this.expect("IDENT", undefined, "a parameter name");
+          params.push(p.value);
+          if (this.eat("OP", ",")) { this.skipNL(); if (this.atOp(")")) break; continue; }
+          break;
+        }
+      }
+      this.expect("OP", ")", "')'");
+      const body = this.parseBlock();
+      return { params, body, end: body.end };
+    }
+
+    parseBlock() {
+      const open = this.expect("OP", "{", "'{'");
+      const body = [];
+      this.skipNL();
+      while (!this.atOp("}")) {
+        if (this.at("EOF")) {
+          throw synErr("Unclosed block — missing '}'", open.start, open.end, open.line, open.col);
+        }
+        body.push(this.parseStmt());
+        this.terminator();
+        this.skipNL();
+      }
+      const close = this.next();
+      return { type: "Block", body, start: open.start, end: close.end, line: open.line, col: open.col };
+    }
+
+    parseWhile() {
+      const kw = this.next();
+      const cond = this.parseExpr(0);
+      const body = this.parseBlock();
+      return { type: "While", cond, body, start: kw.start, end: body.end, line: kw.line, col: kw.col };
+    }
+
+    parseFor() {
+      const kw = this.next();
+      const name = this.expect("IDENT", undefined, "a loop variable");
+      this.expect("KW", "in", "'in'");
+      const iter = this.parseExpr(0);
+      const body = this.parseBlock();
+      return { type: "For", name: name.value, iter, body,
+        start: kw.start, end: body.end, line: kw.line, col: kw.col };
+    }
+
+    parseReturn() {
+      const kw = this.next();
+      let value = null;
+      if (!this.at("NL") && !this.atOp("}") && !this.at("EOF")) value = this.parseExpr(0);
+      return { type: "Return", value, start: kw.start,
+        end: value ? value.end : kw.end, line: kw.line, col: kw.col };
+    }
+
+    parseIfExpr() {
+      const kw = this.next(); // 'if'
+      const cond = this.parseExpr(0);
+      const then = this.parseBlock();
+      let alt = null;
+      // allow `} else` on same filtered stream (NL before else was dropped)
+      if (this.atKw("else")) {
+        this.next();
+        if (this.atKw("if")) alt = this.parseIfExpr();
+        else alt = this.parseBlock();
+      }
+      return { type: "If", cond, then, alt,
+        start: kw.start, end: (alt || then).end, line: kw.line, col: kw.col };
+    }
+
+    parseExpr(minPrec) {
+      let left = this.parseUnary();
+      for (;;) {
+        const t = this.peek();
+        let prec = null, op = null;
+        if (t.type === "OP") {
+          op = t.value;
+          if (op === "|>") prec = PREC.PIPE;
+          else if (op === "==" || op === "!=") prec = PREC.EQ;
+          else if (op === "<" || op === ">" || op === "<=" || op === ">=") prec = PREC.CMP;
+          else if (op === "..") prec = PREC.RANGE;
+          else if (op === "+" || op === "-") prec = PREC.ADD;
+          else if (op === "*" || op === "/" || op === "%") prec = PREC.MUL;
+        } else if (t.type === "KW") {
+          if (t.value === "or") { op = "or"; prec = PREC.OR; }
+          else if (t.value === "and") { op = "and"; prec = PREC.AND; }
+        }
+        if (prec === null || prec < minPrec) return left;
+        this.next();
+        if (op === "|>") {
+          const rhs = this.parseExpr(PREC.PIPE + 1);
+          left = pipeToCall(left, rhs);
+          continue;
+        }
+        const right = this.parseExpr(prec + 1);
+        left = { type: op === "and" || op === "or" ? "Logical" : (op === ".." ? "Range" : "Binary"),
+          op, left, right, start: left.start, end: right.end, line: left.line, col: left.col };
+      }
+    }
+
+    parseUnary() {
+      const t = this.peek();
+      if (t.type === "OP" && t.value === "-") {
+        this.next();
+        const arg = this.parseUnary();
+        return { type: "Unary", op: "-", arg, start: t.start, end: arg.end, line: t.line, col: t.col };
+      }
+      if (t.type === "KW" && t.value === "not") {
+        this.next();
+        const arg = this.parseUnary();
+        return { type: "Unary", op: "not", arg, start: t.start, end: arg.end, line: t.line, col: t.col };
+      }
+      return this.parsePostfix();
+    }
+
+    parsePostfix() {
+      let expr = this.parsePrimary();
+      for (;;) {
+        if (this.atOp("(")) {
+          const open = this.next();
+          const args = [];
+          this.skipNL();
+          if (!this.atOp(")")) {
+            for (;;) {
+              args.push(this.parseExpr(0));
+              if (this.eat("OP", ",")) { this.skipNL(); if (this.atOp(")")) break; continue; }
+              break;
+            }
+          }
+          const close = this.expect("OP", ")", "')'");
+          expr = { type: "Call", callee: expr, args,
+            start: expr.start, end: close.end, line: expr.line, col: expr.col };
+          continue;
+        }
+        if (this.atOp("[")) {
+          this.next();
+          const index = this.parseExpr(0);
+          const close = this.expect("OP", "]", "']'");
+          expr = { type: "Index", obj: expr, index,
+            start: expr.start, end: close.end, line: expr.line, col: expr.col };
+          continue;
+        }
+        if (this.atOp(".")) {
+          this.next();
+          const name = this.expect("IDENT", undefined, "a property name");
+          expr = { type: "Member", obj: expr, name: name.value,
+            start: expr.start, end: name.end, line: expr.line, col: expr.col };
+          continue;
+        }
+        return expr;
+      }
+    }
+
+    parsePrimary() {
+      const t = this.peek();
+      if (t.type === "NUM") { this.next(); return { type: "Num", value: t.value, ...spanOf(t) }; }
+      if (t.type === "STR") {
+        this.next();
+        const parts = t.value.parts.map(p => {
+          if (p.kind === "str") return { kind: "str", value: p.value };
+          // sub-parse the interpolated expression
+          const subToks = filterNewlines(lex(p.src, p.offset, p.line, p.col));
+          const sub = new Parser(subToks, p.src);
+          const e = sub.parseExpr(0);
+          const rest = sub.peek();
+          if (rest.type !== "EOF") {
+            throw synErr("Unexpected " + describeTok(rest) + " in string interpolation",
+              rest.start, Math.max(rest.end, rest.start + 1), rest.line, rest.col);
+          }
+          return { kind: "expr", expr: e };
+        });
+        if (parts.length === 1 && parts[0].kind === "str") {
+          return { type: "Str", value: parts[0].value, ...spanOf(t) };
+        }
+        if (parts.length === 0) return { type: "Str", value: "", ...spanOf(t) };
+        return { type: "Interp", parts, ...spanOf(t) };
+      }
+      if (t.type === "IDENT") { this.next(); return { type: "Ident", name: t.value, ...spanOf(t) }; }
+      if (t.type === "KW") {
+        if (t.value === "true" || t.value === "false") {
+          this.next(); return { type: "Bool", value: t.value === "true", ...spanOf(t) };
+        }
+        if (t.value === "nil") { this.next(); return { type: "Nil", ...spanOf(t) }; }
+        if (t.value === "fn") {
+          const kw = this.next();
+          const { params, body, end } = this.parseFnRest();
+          return { type: "FnExpr", params, body, start: kw.start, end, line: kw.line, col: kw.col };
+        }
+        if (t.value === "if") return this.parseIfExpr();
+        if (t.value === "match") return this.parseMatch();
+      }
+      if (t.type === "OP") {
+        if (t.value === "(") {
+          this.next();
+          this.skipNL();
+          const e = this.parseExpr(0);
+          this.skipNL();
+          this.expect("OP", ")", "')'");
+          return e;
+        }
+        if (t.value === "[") {
+          const open = this.next();
+          const items = [];
+          this.skipNL();
+          if (!this.atOp("]")) {
+            for (;;) {
+              items.push(this.parseExpr(0));
+              if (this.eat("OP", ",")) { this.skipNL(); if (this.atOp("]")) break; continue; }
+              break;
+            }
+          }
+          this.skipNL();
+          const close = this.expect("OP", "]", "']'");
+          return { type: "ArrayLit", items, start: open.start, end: close.end, line: open.line, col: open.col };
+        }
+        if (t.value === "{") {
+          const open = this.next();
+          const entries = [];
+          this.skipNL();
+          if (!this.atOp("}")) {
+            for (;;) {
+              this.skipNL();
+              let key;
+              if (this.at("IDENT")) key = this.next().value;
+              else if (this.at("STR")) {
+                const s = this.next();
+                if (s.value.parts.length > 1 || (s.value.parts[0] && s.value.parts[0].kind !== "str")) {
+                  throw synErr("Map keys cannot be interpolated strings", s.start, s.end, s.line, s.col);
+                }
+                key = s.value.parts.length ? s.value.parts[0].value : "";
+              } else {
+                const bad = this.peek();
+                throw synErr("Expected a map key but found " + describeTok(bad),
+                  bad.start, Math.max(bad.end, bad.start + 1), bad.line, bad.col);
+              }
+              this.expect("OP", ":", "':'");
+              const value = this.parseExpr(0);
+              entries.push({ key, value });
+              if (this.eat("OP", ",")) { this.skipNL(); if (this.atOp("}")) break; continue; }
+              break;
+            }
+          }
+          this.skipNL();
+          const close = this.expect("OP", "}", "'}'");
+          return { type: "MapLit", entries, start: open.start, end: close.end, line: open.line, col: open.col };
+        }
+      }
+      throw synErr("Expected an expression but found " + describeTok(t),
+        t.start, Math.max(t.end, t.start + 1), t.line, t.col);
+    }
+  }
+
+  function spanOf(t) { return { start: t.start, end: t.end, line: t.line, col: t.col }; }
+
+  function describeTok(t) {
+    if (t.type === "EOF") return "end of file";
+    if (t.type === "NL") return "end of line";
+    if (t.type === "STR") return "a string";
+    if (t.type === "NUM") return "'" + t.value + "'";
+    return "'" + t.value + "'";
+  }
+
+  function pipeToCall(lhs, rhs) {
+    if (rhs.type === "Call") {
+      return { ...rhs, args: [lhs, ...rhs.args], start: lhs.start, line: lhs.line, col: lhs.col };
+    }
+    if (rhs.type === "Ident" || rhs.type === "Member" || rhs.type === "FnExpr") {
+      return { type: "Call", callee: rhs, args: [lhs],
+        start: lhs.start, end: rhs.end, line: lhs.line, col: lhs.col };
+    }
+    throw synErr("The right side of |> must be a function or call",
+      rhs.start, rhs.end, rhs.line, rhs.col);
+  }
+
+  function parse(src) {
+    const toks = filterNewlines(lex(src));
+    return new Parser(toks, src).parseProgram();
+  }
+
+  /* ---------------- values & runtime ---------------- */
+  class Scope {
+    constructor(parent, label) { this.vars = new Map(); this.parent = parent; this.label = label || null; }
+    get(name, node) {
+      let s = this;
+      while (s) { if (s.vars.has(name)) return s.vars.get(name); s = s.parent; }
+      throw rtErr("'" + name + "' is not defined" + suggest(name, this), node);
+    }
+    set(name, v, node) {
+      let s = this;
+      while (s) { if (s.vars.has(name)) { s.vars.set(name, v); return; } s = s.parent; }
+      throw rtErr("Cannot assign to '" + name + "' — it was never declared (use `let " + name + " = ...`)", node);
+    }
+    declare(name, v) { this.vars.set(name, v); }
+    has(name) { let s = this; while (s) { if (s.vars.has(name)) return true; s = s.parent; } return false; }
+  }
+
+  function suggest(name, scope) {
+    const names = [];
+    let s = scope;
+    while (s) { for (const k of s.vars.keys()) names.push(k); s = s.parent; }
+    let best = null, bestD = 3;
+    for (const cand of names) {
+      const d = editDist(name, cand);
+      if (d < bestD) { bestD = d; best = cand; }
+    }
+    return best ? " — did you mean '" + best + "'?" : "";
+  }
+  function editDist(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 9;
+    const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    return dp[a.length][b.length];
+  }
+
+  class FableFn {
+    constructor(name, params, body, closure) {
+      this.name = name; this.params = params; this.body = body; this.closure = closure;
+    }
+  }
+  class NativeFn {
+    constructor(name, fn) { this.name = name; this.fn = fn; } // fn is a generator function (interp, args, node)
+  }
+  class RangeVal {
+    constructor(from, to) { this.from = from; this.to = to; }
+    toArray() {
+      const out = [];
+      if (this.from <= this.to) for (let i = this.from; i <= this.to; i++) out.push(i);
+      else for (let i = this.from; i >= this.to; i--) out.push(i);
+      return out;
+    }
+    get length() { return Math.abs(this.to - this.from) + 1; }
+  }
+
+  const NIL = null;
+  function truthy(v) { return v !== false && v !== NIL; }
+
+  function typeName(v) {
+    if (v === NIL) return "nil";
+    if (typeof v === "number") return "number";
+    if (typeof v === "string") return "string";
+    if (typeof v === "boolean") return "bool";
+    if (Array.isArray(v)) return "array";
+    if (v instanceof Map) return "map";
+    if (v instanceof RangeVal) return "range";
+    if (v instanceof FableFn || v instanceof NativeFn) return "fn";
+    return "unknown";
+  }
+
+  function fmtNum(x) {
+    if (Number.isInteger(x)) return String(x);
+    return String(Math.round(x * 1e10) / 1e10);
+  }
+
+  function repr(v, depth = 0) {
+    if (v === NIL) return "nil";
+    if (typeof v === "number") return fmtNum(v);
+    if (typeof v === "boolean") return String(v);
+    if (typeof v === "string") return depth === 0 ? v : '"' + v + '"';
+    if (Array.isArray(v)) {
+      if (depth > 3) return "[…]";
+      return "[" + v.map(x => repr(x, depth + 1)).join(", ") + "]";
+    }
+    if (v instanceof Map) {
+      if (depth > 3) return "{…}";
+      const es = [];
+      for (const [k, val] of v) es.push(k + ": " + repr(val, depth + 1));
+      return "{" + es.join(", ") + "}";
+    }
+    if (v instanceof RangeVal) return v.from + ".." + v.to;
+    if (v instanceof FableFn) return "fn " + (v.name || "(anonymous)") + "(" + v.params.join(", ") + ")";
+    if (v instanceof NativeFn) return "fn " + v.name + " (built-in)";
+    return String(v);
+  }
+
+  function eq(a, b) {
+    if (a === b) return true;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!eq(a[i], b[i])) return false;
+      return true;
+    }
+    if (a instanceof RangeVal && b instanceof RangeVal) return a.from === b.from && a.to === b.to;
+    return false;
+  }
+
+  /* control-flow signals */
+  class ReturnSig { constructor(v) { this.value = v; } }
+  class BreakSig {}
+  class ContinueSig {}
+
+  /* ---------------- pattern matching ---------------- */
+  // returns null (no match) or a Map of bindings
+  function matchPattern(pat, v) {
+    switch (pat.type) {
+      case "PatWild": return new Map();
+      case "PatBind": { const m = new Map(); m.set(pat.name, v); return m; }
+      case "PatLit": return eq(pat.value, v) ? new Map() : null;
+      case "PatRange":
+        return (typeof v === "number" && v >= Math.min(pat.from, pat.to) &&
+          v <= Math.max(pat.from, pat.to)) ? new Map() : null;
+      case "PatArray": {
+        let arr = v;
+        if (v instanceof RangeVal) arr = v.toArray();
+        if (!Array.isArray(arr)) return null;
+        if (pat.rest === null && arr.length !== pat.items.length) return null;
+        if (pat.rest !== null && arr.length < pat.items.length) return null;
+        const out = new Map();
+        for (let i = 0; i < pat.items.length; i++) {
+          const m = matchPattern(pat.items[i], arr[i]);
+          if (!m) return null;
+          for (const [k, val] of m) out.set(k, val);
+        }
+        if (pat.rest !== null) out.set(pat.rest, arr.slice(pat.items.length));
+        return out;
+      }
+      case "PatMap": {
+        if (!(v instanceof Map)) return null;
+        const out = new Map();
+        for (const e of pat.entries) {
+          if (!v.has(e.key)) return null;
+          const sub = v.get(e.key);
+          if (e.pat) {
+            const m = matchPattern(e.pat, sub);
+            if (!m) return null;
+            for (const [k, val] of m) out.set(k, val);
+          } else {
+            out.set(e.key, sub);
+          }
+        }
+        return out;
+      }
+    }
+    return null;
+  }
+
+  function patternDesc(pat) {
+    switch (pat.type) {
+      case "PatWild": return "_";
+      case "PatBind": return pat.name;
+      case "PatLit": return repr(pat.value, 1);
+      case "PatRange": return pat.from + ".." + pat.to;
+      case "PatArray": return "[" + pat.items.map(patternDesc).join(", ") +
+        (pat.rest !== null ? ", ..." + pat.rest : "") + "]";
+      case "PatMap": return "{" + pat.entries.map(e => e.key + (e.pat ? ": " + patternDesc(e.pat) : "")).join(", ") + "}";
+    }
+    return "?";
+  }
+
+  /* deterministic RNG (mulberry32) so every run can be replayed exactly */
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ---------------- JS <-> Wend value bridge ---------------- */
+  function fromJS(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === "number" || typeof v === "string" || typeof v === "boolean") return v;
+    if (Array.isArray(v)) return v.map(fromJS);
+    if (typeof v === "object") {
+      const m = new Map();
+      for (const k of Object.keys(v)) m.set(k, fromJS(v[k]));
+      return m;
+    }
+    return String(v);
+  }
+  function toJS(v) {
+    if (v === null) return null;
+    if (typeof v === "number" || typeof v === "string" || typeof v === "boolean") return v;
+    if (Array.isArray(v)) return v.map(toJS);
+    if (v instanceof RangeVal) return v.toArray();
+    if (v instanceof Map) {
+      const o = {};
+      for (const [k, val] of v) o[String(k)] = toJS(val);
+      return o;
+    }
+    return repr(v);
+  }
+
+  /* ---------------- CSV ---------------- */
+  function parseCSVText(text) {
+    const rows = [];
+    let row = [], field = "", inQ = false, i = 0;
+    const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    while (i < s.length) {
+      const c = s[i];
+      if (inQ) {
+        if (c === '"') {
+          if (s[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += c; i++; continue;
+      }
+      if (c === '"') { inQ = true; i++; continue; }
+      if (c === ",") { row.push(field); field = ""; i++; continue; }
+      if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+      field += c; i++;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    const clean = rows.filter(r => !(r.length === 1 && r[0].trim() === ""));
+    if (!clean.length) return [];
+    const headers = clean[0].map(h => h.trim());
+    return clean.slice(1).map(r => {
+      const m = new Map();
+      for (let j = 0; j < headers.length; j++) {
+        let val = r[j] === undefined ? "" : r[j];
+        const num = val.trim() === "" ? NaN : Number(val);
+        m.set(headers[j], Number.isNaN(num) ? val : num);
+      }
+      return m;
+    });
+  }
+  function toCSVText(rows) {
+    if (!rows.length) return "";
+    const headers = [...(rows[0] instanceof Map ? rows[0].keys() : [])];
+    const esc = x => {
+      const s = x === null ? "" : String(typeof x === "number" ? fmtNum(x) : x);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lines = [headers.map(esc).join(",")];
+    for (const r of rows) {
+      lines.push(headers.map(h => esc(r instanceof Map && r.has(h) ? r.get(h) : "")).join(","));
+    }
+    return lines.join("\n");
+  }
+
+  /* rows -> {headers, cells} of display strings (for table()) */
+  function tabulate(rows) {
+    const headers = [];
+    for (const r of rows) {
+      if (r instanceof Map) for (const k of r.keys()) if (!headers.includes(k)) headers.push(k);
+    }
+    const cell = v => (typeof v === "string" ? v : repr(v, 1));
+    if (!headers.length) {
+      return { headers: ["value"], cells: rows.map(r => [cell(r)]) };
+    }
+    const cells = rows.map(r => headers.map(h =>
+      (r instanceof Map && r.has(h)) ? cell(r.get(h)) : ""));
+    return { headers, cells };
+  }
+
+  /* ---------------- builtins ---------------- */
+  function wantArray(v, node, what) {
+    if (Array.isArray(v)) return v;
+    if (v instanceof RangeVal) return v.toArray();
+    if (typeof v === "string") return v.split("");
+    throw rtErr(what + " needs an array, range, or string — got " + typeName(v), node);
+  }
+  function checkNum(v, node, what) {
+    if (typeof v !== "number") throw rtErr(what + " needs a number — got " + typeName(v), node);
+    return v;
+  }
+  function checkStr(v, node, what) {
+    if (typeof v !== "string") throw rtErr(what + " needs a string — got " + typeName(v), node);
+    return v;
+  }
+  function checkFn(v, node, what) {
+    if (!(v instanceof FableFn) && !(v instanceof NativeFn)) {
+      throw rtErr(what + " needs a function — got " + typeName(v), node);
+    }
+    return v;
+  }
+
+  function makeBuiltins() {
+    const B = new Map();
+    const def = (name, fn) => B.set(name, new NativeFn(name, fn));
+
+    def("print", function* (I, args) {
+      I.print(args.map(a => repr(a)).join(" "));
+      return NIL;
+    });
+    def("len", function* (I, args, node) {
+      const v = args[0];
+      if (typeof v === "string") return v.length;
+      if (Array.isArray(v)) return v.length;
+      if (v instanceof Map) return v.size;
+      if (v instanceof RangeVal) return v.length;
+      throw rtErr("len needs a string, array, map, or range — got " + typeName(v), node);
+    });
+    def("push", function* (I, args, node) {
+      if (!Array.isArray(args[0])) throw rtErr("push needs an array — got " + typeName(args[0]), node);
+      args[0].push(args[1] === undefined ? NIL : args[1]);
+      return args[0];
+    });
+    def("pop", function* (I, args, node) {
+      if (!Array.isArray(args[0])) throw rtErr("pop needs an array — got " + typeName(args[0]), node);
+      if (!args[0].length) throw rtErr("pop on an empty array", node);
+      return args[0].pop();
+    });
+    def("keys", function* (I, args, node) {
+      if (!(args[0] instanceof Map)) throw rtErr("keys needs a map — got " + typeName(args[0]), node);
+      return [...args[0].keys()];
+    });
+    def("values", function* (I, args, node) {
+      if (!(args[0] instanceof Map)) throw rtErr("values needs a map — got " + typeName(args[0]), node);
+      return [...args[0].values()];
+    });
+    def("has", function* (I, args, node) {
+      if (args[0] instanceof Map) return args[0].has(args[1]);
+      if (Array.isArray(args[0])) return args[0].some(x => eq(x, args[1]));
+      if (typeof args[0] === "string") return args[0].includes(String(args[1]));
+      throw rtErr("has needs a map, array, or string", node);
+    });
+    def("map", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "map");
+      const f = checkFn(args[1], node, "map");
+      const out = [];
+      for (let i = 0; i < arr.length; i++) out.push(yield* I.callFn(f, [arr[i], i], node));
+      return out;
+    });
+    def("filter", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "filter");
+      const f = checkFn(args[1], node, "filter");
+      const out = [];
+      for (let i = 0; i < arr.length; i++) {
+        if (truthy(yield* I.callFn(f, [arr[i], i], node))) out.push(arr[i]);
+      }
+      return out;
+    });
+    def("reduce", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "reduce");
+      const f = checkFn(args[1], node, "reduce");
+      let acc = args.length > 2 ? args[2] : NIL;
+      let start = 0;
+      if (args.length <= 2) {
+        if (!arr.length) throw rtErr("reduce on an empty collection needs an initial value", node);
+        acc = arr[0]; start = 1;
+      }
+      for (let i = start; i < arr.length; i++) acc = yield* I.callFn(f, [acc, arr[i]], node);
+      return acc;
+    });
+    def("sum", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "sum");
+      let s = 0;
+      for (const x of arr) s += checkNum(x, node, "sum");
+      return s;
+    });
+    def("sort", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "sort").slice();
+      if (args[1]) {
+        const f = checkFn(args[1], node, "sort");
+        // simple stable merge sort so we can yield through the comparator
+        const merge = function* (a, b) {
+          const out = [];
+          let i = 0, j = 0;
+          while (i < a.length && j < b.length) {
+            const k = yield* I.callFn(f, [a[i], b[j]], node);
+            if (checkNum(k, node, "sort comparator") <= 0) out.push(a[i++]); else out.push(b[j++]);
+          }
+          return out.concat(a.slice(i), b.slice(j));
+        };
+        const ms = function* (a) {
+          if (a.length <= 1) return a;
+          const mid = a.length >> 1;
+          const l = yield* ms(a.slice(0, mid));
+          const r = yield* ms(a.slice(mid));
+          return yield* merge(l, r);
+        };
+        return yield* ms(arr);
+      }
+      return arr.sort((a, b) => {
+        if (typeof a === "number" && typeof b === "number") return a - b;
+        return String(repr(a)).localeCompare(String(repr(b)));
+      });
+    });
+    def("reverse", function* (I, args, node) {
+      const v = args[0];
+      if (typeof v === "string") return v.split("").reverse().join("");
+      return wantArray(v, node, "reverse").slice().reverse();
+    });
+    def("join", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "join");
+      const sep = args.length > 1 ? checkStr(args[1], node, "join separator") : "";
+      return arr.map(x => repr(x)).join(sep);
+    });
+    def("split", function* (I, args, node) {
+      const s = checkStr(args[0], node, "split");
+      const sep = args.length > 1 ? checkStr(args[1], node, "split separator") : "";
+      return s.split(sep);
+    });
+    def("upper", function* (I, args, node) { return checkStr(args[0], node, "upper").toUpperCase(); });
+    def("lower", function* (I, args, node) { return checkStr(args[0], node, "lower").toLowerCase(); });
+    def("trim", function* (I, args, node) { return checkStr(args[0], node, "trim").trim(); });
+    def("abs", function* (I, args, node) { return Math.abs(checkNum(args[0], node, "abs")); });
+    def("floor", function* (I, args, node) { return Math.floor(checkNum(args[0], node, "floor")); });
+    def("ceil", function* (I, args, node) { return Math.ceil(checkNum(args[0], node, "ceil")); });
+    def("round", function* (I, args, node) { return Math.round(checkNum(args[0], node, "round")); });
+    def("sqrt", function* (I, args, node) { return Math.sqrt(checkNum(args[0], node, "sqrt")); });
+    def("pow", function* (I, args, node) {
+      return Math.pow(checkNum(args[0], node, "pow"), checkNum(args[1], node, "pow"));
+    });
+    def("min", function* (I, args, node) {
+      const arr = args.length === 1 ? wantArray(args[0], node, "min") : args;
+      if (!arr.length) throw rtErr("min of nothing", node);
+      return arr.reduce((a, b) => (checkNum(b, node, "min") < a ? b : a), checkNum(arr[0], node, "min"));
+    });
+    def("max", function* (I, args, node) {
+      const arr = args.length === 1 ? wantArray(args[0], node, "max") : args;
+      if (!arr.length) throw rtErr("max of nothing", node);
+      return arr.reduce((a, b) => (checkNum(b, node, "max") > a ? b : a), checkNum(arr[0], node, "max"));
+    });
+    def("random", function* (I) { return I.rng(); });
+    def("num", function* (I, args, node) {
+      const x = parseFloat(args[0]);
+      if (Number.isNaN(x)) throw rtErr("Cannot convert " + repr(args[0]) + " to a number", node);
+      return x;
+    });
+    def("str", function* (I, args) { return repr(args[0]); });
+    def("type", function* (I, args) { return typeName(args[0]); });
+    def("chars", function* (I, args, node) { return checkStr(args[0], node, "chars").split(""); });
+
+    /* ---- data wrangling ---- */
+    def("parse_json", function* (I, args, node) {
+      const s = checkStr(args[0], node, "parse_json");
+      try { return fromJS(JSON.parse(s)); }
+      catch (e) { throw rtErr("That is not valid JSON — " + e.message, node); }
+    });
+    def("to_json", function* (I, args, node) {
+      const indent = args.length > 1 ? checkNum(args[1], node, "to_json indent") : 0;
+      return JSON.stringify(toJS(args[0]), null, indent || undefined) || "null";
+    });
+    def("parse_csv", function* (I, args, node) {
+      return parseCSVText(checkStr(args[0], node, "parse_csv"));
+    });
+    def("to_csv", function* (I, args, node) {
+      return toCSVText(wantArray(args[0], node, "to_csv"));
+    });
+    def("table", function* (I, args, node) {
+      const rows = wantArray(args[0], node, "table");
+      const { headers, cells } = tabulate(rows);
+      if (I.onTable) { I.onTable(headers, cells); return NIL; }
+      // plain-text fallback
+      const widths = headers.map((h, i) =>
+        Math.max(h.length, ...cells.map(r => r[i].length), 1));
+      const line = (cols, pad) => cols.map((c, i) => c[pad](widths[i])).join("  ");
+      I.print(line(headers, "padEnd"));
+      I.print(widths.map(w => "─".repeat(w)).join("  "));
+      for (const r of cells) I.print(line(r, "padEnd"));
+      return NIL;
+    });
+    def("group_by", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "group_by");
+      const f = checkFn(args[1], node, "group_by");
+      const m = new Map();
+      for (let i = 0; i < arr.length; i++) {
+        let k = yield* I.callFn(f, [arr[i], i], node);
+        if (typeof k !== "string" && typeof k !== "number" && typeof k !== "boolean") k = repr(k, 1);
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(arr[i]);
+      }
+      return m;
+    });
+    def("count_by", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "count_by");
+      const f = checkFn(args[1], node, "count_by");
+      const m = new Map();
+      for (let i = 0; i < arr.length; i++) {
+        let k = yield* I.callFn(f, [arr[i], i], node);
+        if (typeof k !== "string" && typeof k !== "number" && typeof k !== "boolean") k = repr(k, 1);
+        m.set(k, (m.get(k) || 0) + 1);
+      }
+      return m;
+    });
+    def("sort_by", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "sort_by").slice();
+      const f = checkFn(args[1], node, "sort_by");
+      const keyed = [];
+      for (let i = 0; i < arr.length; i++) keyed.push([yield* I.callFn(f, [arr[i], i], node), arr[i]]);
+      keyed.sort((a, b) => {
+        if (typeof a[0] === "number" && typeof b[0] === "number") return a[0] - b[0];
+        return String(a[0]).localeCompare(String(b[0]));
+      });
+      return keyed.map(k => k[1]);
+    });
+    def("unique", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "unique");
+      const out = [];
+      for (const x of arr) if (!out.some(y => eq(x, y))) out.push(x);
+      return out;
+    });
+    def("flatten", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "flatten");
+      const out = [];
+      for (const x of arr) {
+        if (Array.isArray(x)) out.push(...x);
+        else if (x instanceof RangeVal) out.push(...x.toArray());
+        else out.push(x);
+      }
+      return out;
+    });
+    def("zip", function* (I, args, node) {
+      const a = wantArray(args[0], node, "zip"), b = wantArray(args[1], node, "zip");
+      const out = [];
+      for (let i = 0; i < Math.min(a.length, b.length); i++) out.push([a[i], b[i]]);
+      return out;
+    });
+    def("take", function* (I, args, node) {
+      return wantArray(args[0], node, "take").slice(0, checkNum(args[1], node, "take"));
+    });
+    def("drop", function* (I, args, node) {
+      return wantArray(args[0], node, "drop").slice(checkNum(args[1], node, "drop"));
+    });
+    def("first", function* (I, args, node) {
+      const a = wantArray(args[0], node, "first");
+      return a.length ? a[0] : NIL;
+    });
+    def("last", function* (I, args, node) {
+      const a = wantArray(args[0], node, "last");
+      return a.length ? a[a.length - 1] : NIL;
+    });
+    def("find", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "find");
+      const f = checkFn(args[1], node, "find");
+      for (let i = 0; i < arr.length; i++) {
+        if (truthy(yield* I.callFn(f, [arr[i], i], node))) return arr[i];
+      }
+      return NIL;
+    });
+    def("any", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "any");
+      const f = checkFn(args[1], node, "any");
+      for (let i = 0; i < arr.length; i++) {
+        if (truthy(yield* I.callFn(f, [arr[i], i], node))) return true;
+      }
+      return false;
+    });
+    def("all", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "all");
+      const f = checkFn(args[1], node, "all");
+      for (let i = 0; i < arr.length; i++) {
+        if (!truthy(yield* I.callFn(f, [arr[i], i], node))) return false;
+      }
+      return true;
+    });
+    def("avg", function* (I, args, node) {
+      const arr = wantArray(args[0], node, "avg");
+      if (!arr.length) throw rtErr("avg of an empty collection", node);
+      let s = 0;
+      for (const x of arr) s += checkNum(x, node, "avg");
+      return s / arr.length;
+    });
+    def("slice", function* (I, args, node) {
+      const v = args[0];
+      const a = checkNum(args[1], node, "slice"), b = args.length > 2 ? checkNum(args[2], node, "slice") : undefined;
+      if (typeof v === "string") return v.slice(a, b);
+      return wantArray(v, node, "slice").slice(a, b);
+    });
+    def("replace", function* (I, args, node) {
+      return checkStr(args[0], node, "replace")
+        .split(checkStr(args[1], node, "replace")).join(checkStr(args[2], node, "replace"));
+    });
+    def("starts_with", function* (I, args, node) {
+      return checkStr(args[0], node, "starts_with").startsWith(checkStr(args[1], node, "starts_with"));
+    });
+    def("ends_with", function* (I, args, node) {
+      return checkStr(args[0], node, "ends_with").endsWith(checkStr(args[1], node, "ends_with"));
+    });
+    return B;
+  }
+
+  /* ---------------- interpreter ---------------- */
+  class Interpreter {
+    constructor(src, opts = {}) {
+      this.src = src;
+      this.maxSteps = opts.maxSteps || 2_000_000;
+      this.maxDepth = opts.maxDepth || 200;
+      this.onPrint = opts.onPrint || (() => {});
+      this.onTable = opts.onTable || null;   // (headers, cells) for rich table output
+      this.onWrite = opts.onWrite || null;   // (name, value, node) — variable history
+      this.seed = (opts.seed === undefined) ? 1 : opts.seed;
+      this.rng = mulberry32(this.seed);
+      this.steps = 0;
+      this.globals = new Scope(null, "globals");
+      for (const [k, v] of makeBuiltins()) this.globals.declare(k, v);
+      if (opts.inject) {
+        for (const k of Object.keys(opts.inject)) this.globals.declare(k, opts.inject[k]);
+      }
+      this.callStack = [];
+      this.ast = parse(src); // throws WendError(syntax)
+      this.result = undefined;
+    }
+
+    wrote(name, value, node) {
+      if (this.onWrite) this.onWrite(name, value, node);
+    }
+
+    print(line) { this.onPrint(line); }
+
+    frame() { return this.callStack[this.callStack.length - 1]; }
+
+    *tick(node, scope, note) {
+      this.steps++;
+      if (this.steps > this.maxSteps) {
+        throw rtErr("The story ran too long (over " + this.maxSteps.toLocaleString() +
+          " steps) — possible infinite loop?", node);
+      }
+      const f = this.frame();
+      if (f) { f.node = node; f.scope = scope; }
+      yield { node, scope, note: note || null, depth: this.callStack.length };
+    }
+
+    *run() {
+      const scope = new Scope(this.globals, "program");
+      this.callStack.push({ name: "story", fnName: null, scope, node: this.ast, callNode: null });
+      let last = NIL;
+      try {
+        for (const stmt of this.ast.body) last = yield* this.exec(stmt, scope);
+      } finally {
+        this.callStack.pop();
+      }
+      this.result = last;
+      return last;
+    }
+
+    /* execute a statement; returns its value (for implicit results) */
+    *exec(node, scope) {
+      switch (node.type) {
+        case "Let": {
+          yield* this.tick(node, scope, "declare " + node.name);
+          const v = yield* this.eval(node.value, scope);
+          scope.declare(node.name, v);
+          this.wrote(node.name, v, node);
+          return NIL;
+        }
+        case "LetPattern": {
+          yield* this.tick(node, scope, "destructure");
+          const v = yield* this.eval(node.value, scope);
+          const bindings = matchPattern(node.pattern, v);
+          if (!bindings) {
+            throw rtErr("The value " + repr(v, 1) + " does not fit the pattern " +
+              patternDesc(node.pattern), node);
+          }
+          for (const [k, val] of bindings) { scope.declare(k, val); this.wrote(k, val, node); }
+          return NIL;
+        }
+        case "FnDecl": {
+          yield* this.tick({ ...node, end: node.body.start }, scope, "define fn " + node.name);
+          scope.declare(node.name, new FableFn(node.name, node.params, node.body, scope));
+          return NIL;
+        }
+        case "Assign": {
+          yield* this.tick(node, scope, "assign");
+          let v = yield* this.eval(node.value, scope);
+          if (node.op !== "=") {
+            const cur = yield* this.readTarget(node.target, scope);
+            v = this.binop(node.op === "+=" ? "+" : "-", cur, v, node);
+          }
+          yield* this.writeTarget(node.target, v, scope);
+          // history: log the root variable's new value
+          let root = node.target;
+          while (root.type === "Index" || root.type === "Member") root = root.obj;
+          if (root.type === "Ident") {
+            this.wrote(root.name, scope.has(root.name) ? scope.get(root.name, root) : v, node);
+          }
+          return NIL;
+        }
+        case "ExprStmt":
+          return yield* this.eval(node.expr, scope);
+        case "While": {
+          for (;;) {
+            yield* this.tick(node.cond, scope, "while: check");
+            const c = yield* this.eval(node.cond, scope);
+            if (!truthy(c)) break;
+            try {
+              yield* this.execBlock(node.body, new Scope(scope, "while"));
+            } catch (e) {
+              if (e instanceof BreakSig) break;
+              if (e instanceof ContinueSig) continue;
+              throw e;
+            }
+          }
+          return NIL;
+        }
+        case "For": {
+          yield* this.tick(node.iter, scope, "for: source");
+          const src = yield* this.eval(node.iter, scope);
+          let items;
+          if (Array.isArray(src)) items = src.slice();
+          else if (src instanceof RangeVal) items = src.toArray();
+          else if (typeof src === "string") items = src.split("");
+          else if (src instanceof Map) items = [...src.keys()];
+          else throw rtErr("Cannot loop over a " + typeName(src), node.iter);
+          for (const item of items) {
+            const inner = new Scope(scope, "for");
+            inner.declare(node.name, item);
+            this.wrote(node.name, item, node);
+            yield* this.tick({ ...node, end: node.body.start }, inner,
+              "for: " + node.name + " = " + repr(item, 1));
+            try {
+              yield* this.execBlock(node.body, inner);
+            } catch (e) {
+              if (e instanceof BreakSig) break;
+              if (e instanceof ContinueSig) continue;
+              throw e;
+            }
+          }
+          return NIL;
+        }
+        case "Return": {
+          yield* this.tick(node, scope, "return");
+          const v = node.value ? yield* this.eval(node.value, scope) : NIL;
+          throw new ReturnSig(v);
+        }
+        case "Break":
+          yield* this.tick(node, scope, "break");
+          throw new BreakSig();
+        case "Continue":
+          yield* this.tick(node, scope, "continue");
+          throw new ContinueSig();
+        default:
+          throw rtErr("Unknown statement " + node.type, node);
+      }
+    }
+
+    *execBlock(block, scope) {
+      let last = NIL;
+      for (const stmt of block.body) last = yield* this.exec(stmt, scope);
+      return last;
+    }
+
+    *readTarget(t, scope) {
+      if (t.type === "Ident") return scope.get(t.name, t);
+      if (t.type === "Index") {
+        const obj = yield* this.eval(t.obj, scope);
+        const idx = yield* this.eval(t.index, scope);
+        return this.indexGet(obj, idx, t);
+      }
+      if (t.type === "Member") {
+        const obj = yield* this.eval(t.obj, scope);
+        return this.memberGet(obj, t.name, t);
+      }
+      throw rtErr("Bad assignment target", t);
+    }
+
+    *writeTarget(t, v, scope) {
+      if (t.type === "Ident") { scope.set(t.name, v, t); return; }
+      if (t.type === "Index") {
+        const obj = yield* this.eval(t.obj, scope);
+        const idx = yield* this.eval(t.index, scope);
+        if (Array.isArray(obj)) {
+          const i = this.arrIndex(obj, idx, t);
+          obj[i] = v; return;
+        }
+        if (obj instanceof Map) { obj.set(idx, v); return; }
+        throw rtErr("Cannot index-assign into a " + typeName(obj), t);
+      }
+      if (t.type === "Member") {
+        const obj = yield* this.eval(t.obj, scope);
+        if (obj instanceof Map) { obj.set(t.name, v); return; }
+        throw rtErr("Cannot set ." + t.name + " on a " + typeName(obj), t);
+      }
+      throw rtErr("Bad assignment target", t);
+    }
+
+    arrIndex(arr, idx, node) {
+      if (typeof idx !== "number" || !Number.isInteger(idx)) {
+        throw rtErr("Array index must be a whole number — got " + repr(idx), node);
+      }
+      let i = idx;
+      if (i < 0) i += arr.length;
+      if (i < 0 || i >= arr.length) {
+        throw rtErr("Index " + idx + " is out of range (length " + arr.length + ")", node);
+      }
+      return i;
+    }
+
+    indexGet(obj, idx, node) {
+      if (Array.isArray(obj)) return obj[this.arrIndex(obj, idx, node)];
+      if (typeof obj === "string") {
+        const i = this.arrIndex(obj.split(""), idx, node);
+        return obj[i];
+      }
+      if (obj instanceof Map) return obj.has(idx) ? obj.get(idx) : NIL;
+      if (obj instanceof RangeVal) return this.indexGet(obj.toArray(), idx, node);
+      throw rtErr("Cannot index into a " + typeName(obj), node);
+    }
+
+    memberGet(obj, name, node) {
+      if (obj instanceof Map) return obj.has(name) ? obj.get(name) : NIL;
+      throw rtErr("Cannot read ." + name + " of a " + typeName(obj), node);
+    }
+
+    binop(op, a, b, node) {
+      switch (op) {
+        case "+":
+          if (typeof a === "number" && typeof b === "number") return a + b;
+          if (typeof a === "string" || typeof b === "string") return repr(a) + repr(b);
+          if (Array.isArray(a) && Array.isArray(b)) return a.concat(b);
+          throw rtErr("Cannot add " + typeName(a) + " and " + typeName(b), node);
+        case "-": case "*": case "/": case "%": {
+          if (typeof a !== "number" || typeof b !== "number") {
+            throw rtErr("Cannot " + ({ "-": "subtract", "*": "multiply", "/": "divide", "%": "take remainder of" })[op] +
+              " " + typeName(a) + " and " + typeName(b), node);
+          }
+          if (op === "-") return a - b;
+          if (op === "*") return a * b;
+          if (op === "/") {
+            if (b === 0) throw rtErr("Division by zero", node);
+            return a / b;
+          }
+          if (b === 0) throw rtErr("Remainder by zero", node);
+          return ((a % b) + b) % b;
+        }
+        case "<": case ">": case "<=": case ">=": {
+          if (typeof a === "number" && typeof b === "number") { /* ok */ }
+          else if (typeof a === "string" && typeof b === "string") { /* ok */ }
+          else throw rtErr("Cannot compare " + typeName(a) + " with " + typeName(b), node);
+          if (op === "<") return a < b;
+          if (op === ">") return a > b;
+          if (op === "<=") return a <= b;
+          return a >= b;
+        }
+        case "==": return eq(a, b);
+        case "!=": return !eq(a, b);
+      }
+      throw rtErr("Unknown operator " + op, node);
+    }
+
+    *eval(node, scope) {
+      switch (node.type) {
+        case "Num": return node.value;
+        case "Str": return node.value;
+        case "Bool": return node.value;
+        case "Nil": return NIL;
+        case "Ident":
+          yield* this.tick(node, scope);
+          return scope.get(node.name, node);
+        case "Interp": {
+          yield* this.tick(node, scope, "build string");
+          let out = "";
+          for (const p of node.parts) {
+            if (p.kind === "str") out += p.value;
+            else out += repr(yield* this.eval(p.expr, scope));
+          }
+          return out;
+        }
+        case "ArrayLit": {
+          yield* this.tick(node, scope);
+          const out = [];
+          for (const it of node.items) out.push(yield* this.eval(it, scope));
+          return out;
+        }
+        case "MapLit": {
+          yield* this.tick(node, scope);
+          const m = new Map();
+          for (const e of node.entries) m.set(e.key, yield* this.eval(e.value, scope));
+          return m;
+        }
+        case "FnExpr":
+          return new FableFn(null, node.params, node.body, scope);
+        case "Range": {
+          const a = yield* this.eval(node.left, scope);
+          const b = yield* this.eval(node.right, scope);
+          yield* this.tick(node, scope);
+          if (typeof a !== "number" || typeof b !== "number" ||
+              !Number.isInteger(a) || !Number.isInteger(b)) {
+            throw rtErr("Ranges need whole numbers on both sides", node);
+          }
+          if (Math.abs(b - a) > 5_000_000) throw rtErr("That range is too large", node);
+          return new RangeVal(a, b);
+        }
+        case "Unary": {
+          const v = yield* this.eval(node.arg, scope);
+          yield* this.tick(node, scope);
+          if (node.op === "-") {
+            if (typeof v !== "number") throw rtErr("Cannot negate a " + typeName(v), node);
+            return -v;
+          }
+          return !truthy(v);
+        }
+        case "Logical": {
+          const l = yield* this.eval(node.left, scope);
+          yield* this.tick(node, scope, node.op);
+          if (node.op === "and") return truthy(l) ? yield* this.eval(node.right, scope) : l;
+          return truthy(l) ? l : yield* this.eval(node.right, scope);
+        }
+        case "Binary": {
+          const a = yield* this.eval(node.left, scope);
+          const b = yield* this.eval(node.right, scope);
+          yield* this.tick(node, scope, node.op);
+          return this.binop(node.op, a, b, node);
+        }
+        case "If": {
+          yield* this.tick(node.cond, scope, "if: check");
+          const c = yield* this.eval(node.cond, scope);
+          if (truthy(c)) return yield* this.execBlock(node.then, new Scope(scope, "if"));
+          if (node.alt) {
+            if (node.alt.type === "If") return yield* this.eval(node.alt, scope);
+            return yield* this.execBlock(node.alt, new Scope(scope, "else"));
+          }
+          return NIL;
+        }
+        case "Index": {
+          const obj = yield* this.eval(node.obj, scope);
+          const idx = yield* this.eval(node.index, scope);
+          yield* this.tick(node, scope);
+          return this.indexGet(obj, idx, node);
+        }
+        case "Member": {
+          const obj = yield* this.eval(node.obj, scope);
+          yield* this.tick(node, scope);
+          return this.memberGet(obj, node.name, node);
+        }
+        case "Match": {
+          yield* this.tick({ ...node, end: node.subject.end }, scope, "match");
+          const v = yield* this.eval(node.subject, scope);
+          for (const arm of node.arms) {
+            const bindings = matchPattern(arm.pattern, v);
+            if (bindings) {
+              yield* this.tick(arm.pattern, scope, "matched " + patternDesc(arm.pattern));
+              const inner = new Scope(scope, "match");
+              for (const [k, val] of bindings) { inner.declare(k, val); this.wrote(k, val, arm.pattern); }
+              if (arm.body.type === "Block") return yield* this.execBlock(arm.body, inner);
+              return yield* this.eval(arm.body, inner);
+            }
+          }
+          throw rtErr("No pattern matched " + repr(v, 1) +
+            " — add a '_' arm to catch everything else", node);
+        }
+        case "Call": {
+          const callee = yield* this.eval(node.callee, scope);
+          const args = [];
+          for (const a of node.args) args.push(yield* this.eval(a, scope));
+          yield* this.tick(node, scope, "call " + calleeName(node, callee));
+          return yield* this.callFn(callee, args, node);
+        }
+        default:
+          throw rtErr("Unknown expression " + node.type, node);
+      }
+    }
+
+    *callFn(callee, args, node) {
+      if (callee instanceof NativeFn) {
+        return yield* callee.fn(this, args, node);
+      }
+      if (!(callee instanceof FableFn)) {
+        throw rtErr("This is a " + typeName(callee) + ", not a function — it cannot be called", node);
+      }
+      if (this.callStack.length >= this.maxDepth) {
+        throw rtErr("The call stack grew too deep (" + this.maxDepth + " frames) — runaway recursion?", node);
+      }
+      const scope = new Scope(callee.closure, "fn " + (callee.name || "anonymous"));
+      for (let i = 0; i < callee.params.length; i++) {
+        scope.declare(callee.params[i], i < args.length ? args[i] : NIL);
+      }
+      this.callStack.push({
+        name: callee.name || "fn(" + callee.params.join(", ") + ")",
+        fnName: callee.name, scope, node: callee.body, callNode: node,
+      });
+      try {
+        const v = yield* this.execBlock(callee.body, scope);
+        return v; // implicit: value of last statement
+      } catch (e) {
+        if (e instanceof ReturnSig) return e.value;
+        throw e;
+      } finally {
+        this.callStack.pop();
+      }
+    }
+  }
+
+  function calleeName(node, callee) {
+    if (node.callee.type === "Ident") return node.callee.name;
+    if (callee instanceof FableFn && callee.name) return callee.name;
+    if (callee instanceof NativeFn) return callee.name;
+    return "fn";
+  }
+
+  /* ---------------- highlighting support ---------------- */
+  // Tolerant token stream for the editor: covers the whole source.
+  function highlightTokens(src) {
+    let toks;
+    toks = lex(src, 0, 1, 1, true);
+    const out = [];
+    for (const t of toks) {
+      if (t.type === "EOF") continue;
+      let cls = null;
+      if (t.type === "NUM") cls = "num";
+      else if (t.type === "STR") cls = "str";
+      else if (t.type === "COMMENT") cls = "com";
+      else if (t.type === "KW") {
+        cls = ["true", "false", "nil"].includes(t.value) ? "lit" : "kw";
+      } else if (t.type === "IDENT") cls = "id";
+      else if (t.type === "OP") cls = "op";
+      else if (t.type === "ERROR") cls = "bad";
+      if (cls) out.push({ start: t.start, end: t.end, cls, value: t.value });
+    }
+    return out;
+  }
+
+  const Wend = {
+    lex, parse, Interpreter, WendError, repr, typeName, highlightTokens,
+    RangeVal, FableFn, NativeFn, fromJS, toJS, parseCSVText, toCSVText, tabulate,
+  };
+
+  if (typeof module !== "undefined" && module.exports) module.exports = Wend;
+  else global.Wend = Wend;
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+<script>
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const srcEl = $("src"), hlEl = $("hl"), gutterEl = $("gutter");
+  const consoleEl = $("console"), stackEl = $("stack"), scopesEl = $("scopes");
+  const diagEl = $("diag"), diagMsg = $("diagMsg");
+  const lamp = $("lamp"), stateText = $("stateText"), stepCount = $("stepCount");
+  const posInfo = $("posInfo"), outInfo = $("outInfo");
+  const scrubEl = $("scrub"), tposEl = $("tpos"), timelineEl = $("timeline");
+  const historyList = $("historyList");
+  const dataText = $("dataText"), dataStatus = $("dataStatus");
+
+  const TIMELINE_CAP = 200000;
+
+  /* ================= examples ================= */
+  const DEFAULT_DATA = `[
+  { "id": 1, "customer": "Nia",   "region": "east",  "total": 82.5,  "status": "paid" },
+  { "id": 2, "customer": "Omar",  "region": "west",  "total": 129.0, "status": "paid" },
+  { "id": 3, "customer": "Priya", "region": "east",  "total": 43.25, "status": "refunded" },
+  { "id": 4, "customer": "Sam",   "region": "north", "total": 210.0, "status": "paid" },
+  { "id": 5, "customer": "Tessa", "region": "west",  "total": 65.75, "status": "pending" },
+  { "id": 6, "customer": "Yuki",  "region": "east",  "total": 154.5, "status": "paid" },
+  { "id": 7, "customer": "Zane",  "region": "north", "total": 39.0,  "status": "refunded" },
+  { "id": 8, "customer": "Ivo",   "region": "west",  "total": 98.25, "status": "paid" }
+]`;
+
+  const EXAMPLES = [
+    { name: "Hello, Wend (start here)", code:
+`// Wend is a little language where TIME IS A FEATURE.
+// Every run is recorded. Press ▶ Run, then drag the
+// timeline below backward — the machine walks back
+// the way it came. Click History to see every value
+// a variable ever held.
+
+let traveller = "Melanie"
+let steps_taken = 0
+
+for leg in ["upstream", "over the falls", "into the pool"] {
+  steps_taken += 1
+  print("Leg {steps_taken}: wending {leg}…")
+}
+
+let mood = match steps_taken {
+  0 -> "still at home"
+  1..2 -> "warming up"
+  _ -> "properly wandering"
+}
+
+print("{traveller} is {mood}.")
+print("(Now drag the timeline backward ↓)")` },
+
+    { name: "The orders ledger (data + tables)", code:
+`// The Data tab (right panel →) holds a JSON array of
+// orders. It arrives in your program as \`input\`.
+// Paste your own JSON or CSV there any time.
+
+let paid = input |> filter(fn (o) { o.status == "paid" })
+
+let summary = keys(input |> group_by(fn (o) { o.region }))
+  |> map(fn (r) {
+    let rows = paid |> filter(fn (o) { o.region == r })
+    {
+      region: r,
+      orders: len(rows),
+      revenue: rows |> map(fn (o) { o.total }) |> sum(),
+    }
+  })
+  |> sort_by(fn (row) { -row.revenue })
+
+print("Revenue by region (paid only):")
+table(summary)
+
+let best = first(summary)
+print("Best region: {best.region} — {best.revenue}")
+
+let refunded = input
+  |> filter(fn (o) { o.status == "refunded" })
+  |> map(fn (o) { o.customer })
+  |> join(", ")
+print("Refunds went to: {refunded}")` },
+
+    { name: "Rewind a bug (history)", code:
+`// Something is wrong: the balance ends below zero.
+// After which charge did it break?
+//
+// Old way: add prints everywhere, run again.
+// Wend way: run ONCE, open History → balance, and
+// click through its values to travel to the exact
+// moment it went negative.
+
+let balance = 100
+let charges = [12, 40, 9, 55, 18, 7]
+
+for c in charges {
+  let fee = if c > 30 { 5 } else { 0 }
+  balance -= c + fee
+}
+
+print("Final balance: {balance}")
+if balance < 0 {
+  print("Overdrawn — but after which charge?")
+  print("→ History tab → balance → click the entries.")
+}` },
+
+    { name: "Shapes of data (match)", code:
+`// Pattern matching tells data apart at a glance —
+// literals, ranges, arrays with ...rest, and maps.
+
+fn describe(v) {
+  match v {
+    0 -> "zero exactly"
+    1..9 -> "a single digit"
+    [x, y] -> "a pair: {x} and {y}"
+    [x, ...rest] -> "a list, {x} then {len(rest)} more"
+    { name, age } -> "{name}, {age} years old"
+    { kind: "circle", r } -> "a circle of radius {r}"
+    "wend" -> "the language itself"
+    _ -> "something else ({type(v)})"
+  }
+}
+
+print(describe(7))
+print(describe([3, 4]))
+print(describe([1, 2, 3, 4, 5]))
+print(describe({ name: "Ada", age: 36 }))
+print(describe({ kind: "circle", r: 2 }))
+print(describe("wend"))
+print(describe(true))
+
+// destructuring works in let, too:
+let [first_charge, ...others] = [12, 40, 9]
+let { name } = { name: "Grace", role: "admiral" }
+print("{name} pays {first_charge}, then {others}")` },
+
+    { name: "Fibonacci (watch the stack)", code:
+`// Recursion, recorded. Run it, then scrub the
+// timeline and watch the call stack in the Machine
+// tab climb and collapse — backward, if you like.
+
+fn fib(n) {
+  if n < 2 { return n }
+  return fib(n - 1) + fib(n - 2)
+}
+
+for n in 0..10 {
+  print("fib({n}) = {fib(n)}")
+}` },
+
+    { name: "The typo (kind errors)", code:
+`// A misspelling. Run it and read the diagnosis —
+// Wend guesses what you meant. Fix it and run again.
+
+let torches = 3
+let travellers = 4
+
+print("The party carries {torchs} torches.")
+print("All {travellers} enter the cave together.")` },
+  ];
+
+  /* ================= editor rendering ================= */
+  let tokens = [];
+  let errMark = null;
+  let execMark = null;
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function render() {
+    const src = srcEl.value;
+    const bounds = new Set([0, src.length]);
+    for (const t of tokens) { bounds.add(t.start); bounds.add(t.end); }
+    const marks = [];
+    if (errMark) marks.push({ ...errMark, cls: "mk-err" });
+    if (execMark) marks.push({ ...execMark, cls: "mk-exec" });
+    for (const m of marks) { bounds.add(m.start); bounds.add(m.end); }
+    const bs = [...bounds].filter(b => b >= 0 && b <= src.length).sort((a, b) => a - b);
+
+    let html = "", ti = 0;
+    for (let i = 0; i < bs.length - 1; i++) {
+      const a = bs[i], b = bs[i + 1];
+      if (a === b) continue;
+      while (ti < tokens.length && tokens[ti].end <= a) ti++;
+      const tok = (ti < tokens.length && tokens[ti].start <= a && tokens[ti].end >= b) ? tokens[ti] : null;
+      const classes = [];
+      if (tok) classes.push("tk-" + tok.cls);
+      for (const m of marks) if (m.start <= a && m.end >= b && m.start !== m.end) classes.push(m.cls);
+      const text = escapeHtml(src.slice(a, b));
+      if (classes.length) {
+        const tip = (classes.includes("mk-err") && errMark && errMark.message)
+          ? ' title="' + escapeHtml(errMark.message).replace(/"/g, "&quot;") + '"' : "";
+        html += '<span class="' + classes.join(" ") + '"' + tip + ">" + text + "</span>";
+      } else html += text;
+    }
+    hlEl.innerHTML = html + "\n";
+
+    const lines = src.split("\n").length;
+    const errLine = errMark ? errMark.line : -1;
+    let g = "";
+    for (let i = 1; i <= lines; i++) {
+      g += '<div class="' + (i === errLine ? "errln" : "") + '">' + i + "</div>";
+    }
+    gutterEl.innerHTML = g;
+    syncScroll();
+  }
+
+  function syncScroll() {
+    hlEl.scrollTop = srcEl.scrollTop;
+    hlEl.scrollLeft = srcEl.scrollLeft;
+    gutterEl.scrollTop = srcEl.scrollTop;
+  }
+  srcEl.addEventListener("scroll", syncScroll);
+
+  function retokenize() { tokens = Wend.highlightTokens(srcEl.value); }
+
+  let diagTimer = null;
+  function scheduleDiagnostics() {
+    clearTimeout(diagTimer);
+    diagTimer = setTimeout(() => {
+      try { Wend.parse(srcEl.value); setError(null); }
+      catch (e) { if (e instanceof Wend.WendError) setError(e); else setError(null); }
+      render();
+    }, 250);
+  }
+
+  function setError(e) {
+    if (!e) { errMark = null; diagEl.classList.add("hidden"); return; }
+    const end = Math.max(e.end, e.start + 1);
+    errMark = { start: e.start, end, line: e.line, message: e.message };
+    diagMsg.textContent = "line " + e.line + " — " + e.message;
+    diagEl.classList.remove("hidden");
+  }
+
+  srcEl.addEventListener("input", () => {
+    invalidate();
+    retokenize();
+    render();
+    scheduleDiagnostics();
+    updatePos();
+  });
+
+  srcEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab") {
+      ev.preventDefault();
+      srcEl.setRangeText("  ", srcEl.selectionStart, srcEl.selectionEnd, "end");
+      srcEl.dispatchEvent(new Event("input"));
+    } else if (ev.key === "Enter" && !ev.ctrlKey && !ev.metaKey) {
+      ev.preventDefault();
+      const pos = srcEl.selectionStart;
+      const before = srcEl.value.slice(0, pos);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const line = before.slice(lineStart);
+      let indent = (line.match(/^[ ]*/) || [""])[0];
+      if (/\{\s*$/.test(line)) indent += "  ";
+      srcEl.setRangeText("\n" + indent, srcEl.selectionStart, srcEl.selectionEnd, "end");
+      srcEl.dispatchEvent(new Event("input"));
+    }
+  });
+
+  srcEl.addEventListener("keyup", updatePos);
+  srcEl.addEventListener("click", updatePos);
+  function updatePos() {
+    const p = srcEl.selectionStart;
+    const before = srcEl.value.slice(0, p);
+    const line = before.split("\n").length;
+    const col = p - before.lastIndexOf("\n");
+    posInfo.textContent = "ln " + line + " · col " + col;
+  }
+
+  /* ================= data pane ================= */
+  let dataParsed = { kind: "none", value: null };
+  function parseData() {
+    const text = dataText.value.trim();
+    if (!text) { dataParsed = { kind: "empty", value: null }; return; }
+    try {
+      dataParsed = { kind: "JSON", value: JSON.parse(text) };
+      return;
+    } catch (e) { /* not JSON */ }
+    if (text.includes(",") && text.includes("\n")) {
+      try {
+        const rows = Wend.parseCSVText(text);
+        if (rows.length) { dataParsed = { kind: "CSV", value: rows, isWend: true }; return; }
+      } catch (e) { /* not CSV */ }
+    }
+    dataParsed = { kind: "text", value: text };
+  }
+  function dataInputValue() {
+    if (dataParsed.kind === "empty") return null;
+    if (dataParsed.isWend) return Wend.parseCSVText(dataText.value.trim()); // fresh copy
+    if (dataParsed.kind === "JSON") return Wend.fromJS(JSON.parse(dataText.value.trim()));
+    return dataParsed.value;
+  }
+  function updateDataStatus() {
+    parseData();
+    const desc = {
+      empty: "empty — <b>input</b> will be nil",
+      JSON: "parsed as <b>JSON</b> — available in your program as <b>input</b>",
+      CSV: "parsed as <b>CSV</b> — available as <b>input</b> (array of maps)",
+      text: "plain text — available as <b>input</b> (string)",
+    }[dataParsed.kind];
+    dataStatus.innerHTML = "◈ " + desc;
+  }
+  dataText.addEventListener("input", () => { invalidate(); updateDataStatus(); });
+
+  /* ================= console ================= */
+  // entries: {step, kind:'p'|'err'|'res'|'sys'|'table', text?|headers?/cells?}
+  let entries = [];
+  const MAX_ENTRIES = 3000;
+  let renderedUpTo = -1; // incremental append marker (live mode)
+
+  function pushEntry(e) {
+    if (entries.length === MAX_ENTRIES) entries.push({ step: e.step, kind: "sys", text: "… output truncated …" });
+    if (entries.length > MAX_ENTRIES) return;
+    entries.push(e);
+  }
+
+  function entryNode(e) {
+    if (e.kind === "table") {
+      const t = document.createElement("table");
+      const tr = document.createElement("tr");
+      for (const h of e.headers) { const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+      t.appendChild(tr);
+      for (const row of e.cells.slice(0, 200)) {
+        const r = document.createElement("tr");
+        for (const c of row) { const td = document.createElement("td"); td.textContent = c; r.appendChild(td); }
+        t.appendChild(r);
+      }
+      if (e.cells.length > 200) {
+        const r = document.createElement("tr"), td = document.createElement("td");
+        td.colSpan = e.headers.length; td.textContent = "… " + (e.cells.length - 200) + " more rows …";
+        r.appendChild(td); t.appendChild(r);
+      }
+      return t;
+    }
+    const d = document.createElement("div");
+    d.className = e.kind; d.textContent = e.text;
+    return d;
+  }
+
+  function renderConsole(uptoStep) {
+    consoleEl.innerHTML = "";
+    const frag = document.createDocumentFragment();
+    let shown = 0;
+    for (const e of entries) {
+      if (e.step <= uptoStep) { frag.appendChild(entryNode(e)); shown++; }
+    }
+    if (shown === 0 && trace) {
+      const d = document.createElement("div");
+      d.className = "sys";
+      d.textContent = "(nothing has been printed yet, this early in the journey)";
+      frag.appendChild(d);
+    }
+    consoleEl.appendChild(frag);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+    return shown;
+  }
+
+  function appendNewEntries() { // live mode during recording
+    const frag = document.createDocumentFragment();
+    for (let i = renderedUpTo + 1; i < entries.length; i++) frag.appendChild(entryNode(entries[i]));
+    renderedUpTo = entries.length - 1;
+    consoleEl.appendChild(frag);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  /* ================= machine panels ================= */
+  function renderMachine(interp) {
+    if (!interp || !interp.callStack.length) {
+      stackEl.innerHTML = '<div class="empty-note">' +
+        (trace ? "Journey complete — scrub the timeline to look inside it." : "Nothing is running.") + "</div>";
+      scopesEl.innerHTML = '<div class="empty-note">—</div>';
+      return;
+    }
+    let sh = "";
+    const cs = interp.callStack;
+    for (let i = cs.length - 1; i >= 0; i--) {
+      const f = cs[i];
+      const line = f.node ? f.node.line : "?";
+      sh += '<div class="frame' + (i === cs.length - 1 ? " top" : "") + '">' +
+        '<span class="fname">' + escapeHtml(f.name) + "</span>" +
+        '<span class="fline">line ' + line + "</span></div>";
+    }
+    stackEl.innerHTML = sh;
+
+    const top = cs[cs.length - 1];
+    let scope = top.scope, depth = 0, out = "";
+    while (scope && scope.parent && depth < 7) {
+      let rows = "";
+      for (const [k, v] of scope.vars) {
+        let r = Wend.repr(v, 1);
+        if (r.length > 46) r = r.slice(0, 45) + "…";
+        rows += '<div class="kv"><span class="k">' + escapeHtml(k) +
+          '</span><span class="v">' + escapeHtml(r) + "</span></div>";
+      }
+      if (!rows) rows = '<div class="empty-note">— nothing bound here —</div>';
+      out += '<div class="scopebox"><div class="slabel">' +
+        escapeHtml(scope.label || "block") + "</div>" + rows + "</div>";
+      scope = scope.parent; depth++;
+    }
+    scopesEl.innerHTML = out || '<div class="empty-note">No bindings yet.</div>';
+  }
+
+  /* ================= history panel ================= */
+  let historyByName = null; // Map name -> [{step, repr, line}]
+  const openVars = new Set();
+
+  function buildHistory() {
+    historyByName = new Map();
+    if (!trace) return;
+    for (const w of trace.writes) {
+      if (!historyByName.has(w.name)) historyByName.set(w.name, []);
+      historyByName.get(w.name).push(w);
+    }
+  }
+
+  function renderHistory() {
+    if (!trace || !historyByName || !historyByName.size) {
+      historyList.innerHTML = '<div class="empty-note">Run the program first — every assignment is remembered. Click any entry to travel to that exact moment.</div>';
+      return;
+    }
+    historyList.innerHTML = "";
+    const names = [...historyByName.keys()];
+    for (const name of names) {
+      const writes = historyByName.get(name);
+      const box = document.createElement("div");
+      box.className = "hvar" + (openVars.has(name) ? " open" : "");
+      const head = document.createElement("div");
+      head.className = "hname";
+      head.innerHTML = '<span class="arrow">' + (openVars.has(name) ? "▾" : "▸") + '</span>' +
+        '<span class="nm">' + escapeHtml(name) + '</span>' +
+        '<span class="cnt">' + writes.length + (writes.length === 1 ? " value" : " values") + "</span>";
+      head.addEventListener("click", () => {
+        if (openVars.has(name)) openVars.delete(name); else openVars.add(name);
+        renderHistory();
+      });
+      box.appendChild(head);
+      const list = document.createElement("div");
+      list.className = "hentries";
+      const shown = writes.length > 400 ? writes.slice(writes.length - 400) : writes;
+      if (writes.length > 400) {
+        const n = document.createElement("div");
+        n.className = "empty-note"; n.textContent = "… showing the last 400 of " + writes.length + " …";
+        list.appendChild(n);
+      }
+      for (const w of shown) {
+        const e = document.createElement("div");
+        e.className = "hentry" + (w.step === timePos ? " here" : "");
+        e.innerHTML = '<span class="hv">= ' + escapeHtml(w.repr) + '</span>' +
+          '<span class="hl">line ' + w.line + " · step " + w.step + "</span>";
+        e.title = "Travel to step " + w.step;
+        e.addEventListener("click", () => { seek(w.step); });
+        list.appendChild(e);
+      }
+      box.appendChild(list);
+      historyList.appendChild(box);
+    }
+  }
+
+  /* ================= recording & time travel ================= */
+  let trace = null;   // {seed, total, spans0, spans1, writes, endKind, error, result, timeline}
+  let recorder = null; // during recording {I, gen}
+  let replay = null;  // {I, gen, pos}
+  let timePos = 0;
+  let mode = "idle";  // idle | recording | ready | playing | error-syntax
+  let raf = null, playTimer = null;
+  let runSeed = 1;
+
+  function setMode(m) {
+    mode = m;
+    stateText.textContent =
+      m === "ready" ? (trace && trace.endKind === "error" ? "recorded (ends in error)" : "recorded") : m;
+    lamp.className = "lamp" +
+      (m === "recording" || m === "playing" ? " on"
+        : (trace && trace.endKind === "error" && m === "ready") ? " err"
+        : m === "ready" ? " done" : "");
+    const tl = trace && trace.timeline && (m === "ready" || m === "playing");
+    $("btnPlay").disabled = !tl;
+    $("btnPlay").textContent = m === "playing" ? "❚❚ Pause" : "▷ Play";
+    timelineEl.classList.toggle("off", !tl);
+    scrubEl.disabled = !tl;
+    for (const id of ["btnHome", "btnBack", "btnFwd", "btnEnd"]) $(id).disabled = !tl;
+  }
+
+  function invalidate() {
+    stopPlay();
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    recorder = null; replay = null; trace = null;
+    historyByName = null; openVars.clear();
+    execMark = null;
+    timePos = 0;
+    entries = []; renderedUpTo = -1;
+    scrubEl.value = 0; scrubEl.max = 0;
+    tposEl.textContent = "not recorded yet";
+    stepCount.textContent = ""; outInfo.textContent = "";
+    setMode("idle");
+    renderMachine(null); renderHistory();
+    consoleEl.innerHTML = "";
+  }
+
+  function doRun() {
+    invalidate();
+    setError(null);
+    runSeed = (Math.random() * 0x7fffffff) | 0; // seed chosen once; replays reuse it
+    let I;
+    try {
+      I = new Wend.Interpreter(srcEl.value, {
+        seed: runSeed,
+        inject: { input: dataInputValue() },
+        onPrint: l => pushEntry({ step: I ? I.steps : 0, kind: "p", text: l }),
+        onTable: (headers, cells) => pushEntry({ step: I.steps, kind: "table", headers, cells }),
+        onWrite: (name, value, node) => {
+          if (trace0.writes.length < 30000 && I.steps <= TIMELINE_CAP) {
+            let r = Wend.repr(value, 1);
+            if (r.length > 90) r = r.slice(0, 89) + "…";
+            trace0.writes.push({ step: I.steps, name, repr: r, line: node.line });
+          }
+        },
+      });
+    } catch (e) {
+      if (e instanceof Wend.WendError) {
+        setError(e); render();
+        pushEntry({ step: 0, kind: "err", text: "✗ cannot parse — line " + e.line + ": " + e.message });
+        appendNewEntries();
+        setMode("idle");
+        stateText.textContent = "syntax error";
+        return;
+      }
+      throw e;
+    }
+    const trace0 = { seed: runSeed, spans0: [], spans1: [], writes: [], timeline: true };
+    trace = trace0;
+    recorder = { I, gen: I.run() };
+    setMode("recording");
+    const budget = 25000;
+    const loop = () => {
+      if (!recorder) return;
+      let done = false, errored = null;
+      for (let i = 0; i < budget; i++) {
+        let r;
+        try { r = recorder.gen.next(); }
+        catch (e) {
+          if (e instanceof Wend.WendError) { errored = e; break; }
+          errored = new Wend.WendError("runtime", "internal: " + e.message, 0, 0, 1, 1);
+          break;
+        }
+        if (r.done) { done = true; trace0.result = r.value; break; }
+        if (I.steps <= TIMELINE_CAP) {
+          trace0.spans0.push(r.value.node.start);
+          trace0.spans1.push(r.value.node.end);
+        } else if (trace0.timeline) {
+          trace0.timeline = false; // too long to travel
+          trace0.spans0 = []; trace0.spans1 = []; trace0.writes = [];
+        }
+      }
+      stepCount.textContent = I.steps.toLocaleString() + " steps";
+      appendNewEntries();
+      if (!done && !errored) { raf = requestAnimationFrame(loop); return; }
+      // finished
+      trace0.total = trace0.timeline ? trace0.spans0.length : I.steps;
+      if (errored) {
+        trace0.endKind = "error";
+        trace0.error = errored;
+        setError(errored); render();
+        pushEntry({ step: trace0.total, kind: "err", text: "✗ line " + errored.line + " — " + errored.message });
+      } else {
+        trace0.endKind = "done";
+        if (trace0.result !== null && trace0.result !== undefined) {
+          pushEntry({ step: trace0.total, kind: "res", text: "⇒ " + Wend.repr(trace0.result, 1) });
+        }
+        pushEntry({ step: trace0.total, kind: "sys",
+          text: "journey's end · " + I.steps.toLocaleString() + " steps" +
+            (trace0.timeline ? " · drag the timeline to travel" : " · too long to time-travel (>200k steps)") });
+      }
+      appendNewEntries();
+      recorder = null;
+      scrubEl.max = trace0.total;
+      scrubEl.value = trace0.total;
+      timePos = trace0.total;
+      buildHistory(); renderHistory();
+      setMode("ready");
+      updateTimeLabel();
+      renderMachine(null);
+    };
+    raf = requestAnimationFrame(loop);
+  }
+
+  /* replay machinery: advance a hidden deterministic run to step k */
+  function ensureReplay(k) {
+    if (!replay || replay.pos > k) {
+      const I = new Wend.Interpreter(srcEl.value, { seed: trace.seed, inject: { input: dataInputValue() } });
+      replay = { I, gen: I.run(), pos: 0, lastNode: null };
+    }
+    while (replay.pos < k) {
+      let r;
+      try { r = replay.gen.next(); } catch (e) { replay.pos = k; break; }
+      if (r.done) break;
+      replay.pos++;
+      replay.lastNode = r.value.node;
+    }
+  }
+
+  function updateTimeLabel() {
+    if (!trace || !trace.timeline) { tposEl.textContent = "not recorded yet"; return; }
+    tposEl.innerHTML = "step <b>" + timePos.toLocaleString() + "</b> / " + trace.total.toLocaleString() +
+      (timePos === trace.total ? (trace.endKind === "error" ? " · ✗ error" : " · end") : "");
+  }
+
+  function seek(k) {
+    if (!trace || !trace.timeline) return;
+    k = Math.max(0, Math.min(trace.total, k | 0));
+    timePos = k;
+    scrubEl.value = k;
+    // exec highlight
+    if (k >= 1 && k <= trace.spans0.length) {
+      execMark = { start: trace.spans0[k - 1], end: trace.spans1[k - 1] };
+    } else execMark = null;
+    render();
+    scrollExecIntoView();
+    // console up to k
+    const shown = renderConsole(k);
+    outInfo.textContent = k < trace.total ? "as of step " + k.toLocaleString() : "";
+    // machine via replay
+    if (k === trace.total && trace.endKind === "done") {
+      renderMachine(null);
+    } else {
+      ensureReplay(k);
+      renderMachine(replay.I);
+    }
+    updateTimeLabel();
+    // refresh "here" markers in history without rebuilding open state
+    if ($("tab-history").style.display !== "none") renderHistory();
+  }
+
+  let scrubPending = null;
+  scrubEl.addEventListener("input", () => {
+    const v = +scrubEl.value;
+    if (scrubPending === null) {
+      scrubPending = v;
+      requestAnimationFrame(() => { const k = scrubPending; scrubPending = null; seek(k); });
+    } else scrubPending = v;
+  });
+
+  function scrollExecIntoView() {
+    const el = hlEl.querySelector(".mk-exec");
+    if (!el) return;
+    const top = el.offsetTop, bottom = top + el.offsetHeight;
+    const viewTop = srcEl.scrollTop, viewH = srcEl.clientHeight;
+    if (top < viewTop + 20 || bottom > viewTop + viewH - 40) {
+      srcEl.scrollTop = Math.max(0, top - viewH / 2);
+      syncScroll();
+    }
+  }
+
+  /* playback */
+  function playInterval() {
+    const v = +$("speed").value;
+    const sps = 2 * Math.pow(120, v / 100); // ~2..240 steps/sec
+    return { ms: Math.max(1000 / sps, 16), batch: Math.max(1, Math.round(sps / 60)) };
+  }
+  function doPlay() {
+    if (!trace || !trace.timeline) return;
+    if (mode === "playing") { stopPlay(); setMode("ready"); return; }
+    if (timePos >= trace.total) seek(0);
+    setMode("playing");
+    startPlayTimer();
+  }
+  function startPlayTimer() {
+    stopPlay();
+    const { ms, batch } = playInterval();
+    playTimer = setInterval(() => {
+      if (!trace) return stopPlay();
+      const next = Math.min(trace.total, timePos + batch);
+      seek(next);
+      if (next >= trace.total) { stopPlay(); setMode("ready"); }
+    }, ms);
+  }
+  function stopPlay() { if (playTimer) { clearInterval(playTimer); playTimer = null; } }
+  $("speed").addEventListener("input", () => { if (mode === "playing") startPlayTimer(); });
+
+  $("btnRun").addEventListener("click", doRun);
+  $("btnPlay").addEventListener("click", doPlay);
+  $("btnReset").addEventListener("click", () => { invalidate(); setError(null); render(); });
+  $("btnHome").addEventListener("click", () => { stopPlay(); if (mode === "playing") setMode("ready"); seek(0); });
+  $("btnEnd").addEventListener("click", () => { stopPlay(); if (mode === "playing") setMode("ready"); seek(trace ? trace.total : 0); });
+  $("btnBack").addEventListener("click", () => { stopPlay(); if (mode === "playing") setMode("ready"); seek(timePos - 1); });
+  $("btnFwd").addEventListener("click", () => { stopPlay(); if (mode === "playing") setMode("ready"); seek(timePos + 1); });
+
+  document.addEventListener("keydown", (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); doRun(); }
+    else if ((ev.ctrlKey || ev.metaKey) && ev.key === ".") { ev.preventDefault(); seek(timePos + 1); }
+    else if ((ev.ctrlKey || ev.metaKey) && ev.key === ",") { ev.preventDefault(); seek(timePos - 1); }
+  });
+
+  /* ================= tabs ================= */
+  const tabNames = ["machine", "history", "data", "guide"];
+  for (const btn of document.querySelectorAll(".tabs button")) {
+    btn.addEventListener("click", () => {
+      for (const b of document.querySelectorAll(".tabs button")) b.classList.toggle("active", b === btn);
+      for (const n of tabNames) {
+        $("tab-" + n).style.display = (n === btn.dataset.tab) ? (n === "data" ? "flex" : "block") : "none";
+      }
+      if (btn.dataset.tab === "history") renderHistory();
+    });
+  }
+  $("tab-machine").style.display = "block";
+
+  /* highlight guide samples */
+  for (const pre of document.querySelectorAll("pre.sample")) {
+    const code = pre.textContent;
+    const toks = Wend.highlightTokens(code);
+    let html = "", last = 0;
+    for (const t of toks) {
+      html += escapeHtml(code.slice(last, t.start));
+      html += '<span class="tk-' + t.cls + '">' + escapeHtml(code.slice(t.start, t.end)) + "</span>";
+      last = t.end;
+    }
+    html += escapeHtml(code.slice(last));
+    pre.innerHTML = html;
+  }
+
+  /* ================= boot ================= */
+  const sel = $("examples");
+  for (let i = 0; i < EXAMPLES.length; i++) {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = EXAMPLES[i].name;
+    sel.appendChild(o);
+  }
+  sel.addEventListener("change", () => {
+    srcEl.value = EXAMPLES[+sel.value].code;
+    invalidate();
+    setError(null);
+    retokenize(); render(); scheduleDiagnostics();
+    srcEl.scrollTop = 0; srcEl.setSelectionRange(0, 0); syncScroll(); updatePos();
+  });
+
+  dataText.value = DEFAULT_DATA;
+  updateDataStatus();
+  srcEl.value = EXAMPLES[0].code;
+  retokenize();
+  render();
+  updatePos();
+  setMode("idle");
+})();
+</script>
+</body>
+</html>

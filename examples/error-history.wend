@@ -1,0 +1,15 @@
+// Error history example
+// Run with: node wendcli.js examples/error-history.wend
+
+let balance = 100
+let charges = [12, 40, 9, 55, 18, 7]
+
+for c in charges {
+  let fee = if c > 30 { 5 } else { 0 }
+  balance -= c + fee
+}
+
+print("Final balance: {balance}")
+if balance < 0 {
+  print("Overdrawn — inspect history to find the offending step.")
+}

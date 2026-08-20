@@ -1,66 +1,70 @@
 # Wend
 
-Wend is a real programming language with two surfaces:
+Wend is a small programming language for developers who want debugging, data transformation, and reproducible scripting to feel built in.
 
-- a browser-based playground in [wend.html](wend.html), and
-- a terminal CLI in [wendcli.js](wendcli.js) that runs the same language from your shell.
+> Debugging is not an afterthought. In Wend, execution history is part of the language.
 
-The mission is simple: make debugging feel like a feature of the language rather than a separate toolchain. Wend records execution as a deterministic journey, so you can scrub backward through a run, inspect the history of values, and understand how a bug emerged without scattering temporary prints through your code.
+- Run Wend in the browser or from the CLI with the same runtime behavior.
+- Keep every run deterministic and inspect past values.
+- Work with JSON and CSV data using first-class helpers.
 
-## Why Wend matters
+## Table of contents
 
-Most languages make debugging an afterthought. Wend turns time into a first-class part of the runtime experience.
+- [Why Wend](#why-wend)
+- [Core features](#core-features)
+- [Quick example](#quick-example)
+- [CLI usage](#cli-usage)
+- [Browser playground](#browser-playground)
+- [Project layout](#project-layout)
+- [Developer setup](#developer-setup)
+- [Roadmap](#roadmap)
+- [License](#license)
+- [Contributing](#contributing)
 
-### Core advantages
+## Why Wend
 
-- Deterministic replay: every run is recorded and can be scrubbed step by step.
-- History-driven debugging: inspect how a value evolved over time and jump back to the moment it changed.
-- Data-friendly workflows: ingest JSON or CSV and transform it with built-ins such as `group_by`, `sort_by`, `table`, and `to_csv`.
-- Friendly language features: pattern matching with ranges and rest patterns, destructuring `let`, pipelines, and more helpful errors.
+Wend is built around one simple idea: your language should help you understand what happened, not just what happened now.
 
-## What you can do with Wend
+### Designed for modern workflows
 
-### Rewind a bug
+- **Reversible execution:** every run is captured as a deterministic timeline so you can rewind and inspect past state.
+- **Value history:** browse how variables changed over time, not just their final values.
+- **Data-first scripting:** ingest JSON or CSV directly and manipulate it with built-in helpers.
+- **Predictable runs:** deterministic seeds make behavior reproducible.
+- **Browser + CLI parity:** explore interactively, then run the same script in automation.
 
-Instead of rerunning a program repeatedly and inserting temporary logging, Wend lets you step backward through execution and inspect the state of the machine at any point in the run.
+### What Wend helps you solve
 
-That makes it practical to answer questions like:
+- Replace noisy temporary prints with true execution history.
+- Prototype data transformations quickly and safely.
+- Trace bugs by asking “when did this value change?”
+- Keep interactive exploration and batch execution aligned.
 
-- “How did this value become negative?”
-- “What changed right before the error?”
-- “What was the stack and scope at that moment?”
+## Core features
 
-The same capability is available in the CLI through `--trace`.
+- `let` bindings with destructuring and pattern matching
+- pipeline composition using `|>`
+- built-ins for `group_by`, `sort_by`, `table`, `to_csv`, `fromJS`, and `toJS`
+- deterministic, rewindable execution
+- CLI `--trace` for assignment history
+- browser playground with timeline scrubber and history controls
+- `--version` and stdin support for script/input via `-`
+- compact runtime with zero external dependencies
 
-### Work with data naturally
+## Quick example
 
-Wend is aimed at the jq-shaped niche: it can ingest JSON or CSV and return transformed output in a readable, composable form.
+```wend
+let orders = input
+let paid = orders |> filter(o -> o.status == "paid")
+let totals = paid |> map(o -> o.total)
+print(totals)
+```
 
-### Enjoy a more expressive syntax
+Wend treats data transformation as a first-class workflow with readable syntax and replayable execution.
 
-Wend includes features that make it pleasant to write:
+## CLI usage
 
-- pattern matching with ranges and rest patterns
-- destructuring `let`
-- pipelines
-- informative errors with caret spans and did-you-mean guidance
-
-## Project layout
-
-- [wend.html](wend.html): the interactive playground with editor, console, history, and timeline controls.
-- [wendcli.js](wendcli.js): the Node-based CLI for running Wend programs from the terminal.
-- [README.md](README.md): project overview and getting-started guide.
-- [.gitignore](.gitignore): repository hygiene for local editor and macOS files.
-
-## Quick start
-
-### Browser playground
-
-Open [wend.html](wend.html) in a browser to use the editor, console, history panel, and timeline scrubber.
-
-### Terminal CLI
-
-Run a one-off expression:
+Run a single expression:
 
 ```bash
 node wendcli.js -e "print(42)"
@@ -69,50 +73,105 @@ node wendcli.js -e "print(42)"
 Run a script file:
 
 ```bash
-node wendcli.js path/to/program.wend
+node wendcli.js examples/hello.wend
 ```
 
-Useful options:
+Read a script from stdin:
+
+```bash
+cat examples/hello.wend | node wendcli.js -
+```
+
+Run with JSON input:
+
+```bash
+node wendcli.js examples/data-summary.wend --input examples/sample-data.json
+```
+
+Read input from stdin:
+
+```bash
+cat examples/sample-data.json | node wendcli.js -e "print(input[0].name)" --input -
+```
+
+Show CLI version:
+
+```bash
+node wendcli.js --version
+```
+
+Show help:
 
 ```bash
 node wendcli.js --help
 ```
 
-Common flags include:
+### Common flags
 
-- `--input <file>` to provide JSON or CSV input as `input`
-- `--seed <n>` for deterministic runs
-- `--trace` to print assignments as they happen
+- `-e` execute code directly
+- `--input <file>` load JSON or CSV into `input`
+- `--seed <n>` make runs deterministic
+- `--trace` print assignment history during execution
+- `-h, --help` show usage
+- `--version` print version
 
-## A quick tour
+## Browser playground
 
-A strong first experience is:
+Open [wend.html](wend.html) to use the live editor, console, history panel, and timeline scrubber.
 
-1. Open the playground and run a small program.
-2. Drag the timeline backward and observe execution rewinding.
-3. Break a program on purpose and inspect how the bad state emerged.
-4. Try a data transformation example with your own JSON or CSV input.
+The browser experience is ideal for:
 
-## Current caveats
+- iterating on logic quickly
+- rewinding execution visually
+- inspecting values at earlier points in the run
+- comparing alternative code paths without rerunning manually
 
-The current implementation makes a few tradeoffs to achieve replay-based debugging with a lightweight interpreter and no external dependencies:
+## Project layout
 
-- rewinding very far back in long runs can take a moment
-- very large runs may fall back to plain execution after a threshold
-- mutations made through `push()` rather than assignment are not currently reflected in history
+- `wend.html` — browser playground with editor and execution history
+- `wendcli.js` — terminal CLI wrapper for running Wend scripts
+- `src/wend-runtime.js` — core parser and interpreter
+- `examples/` — sample programs and input files
+- `test/` — regression tests and CLI coverage
+- `.github/workflows/ci.yml` — automated CI for tests
+- `package.json` — project metadata and scripts
+
+## Developer setup
+
+Requires Node 18 or newer.
+
+```bash
+npm test
+```
+
+### Recommended workflow
+
+1. Edit or add examples in `examples/`.
+2. Run the browser playground to explore behavior.
+3. Use `node wendcli.js` for CLI validation.
+4. Run `npm test` to confirm changes.
 
 ## Roadmap
 
-Potential next steps include:
+Future improvements include:
 
-- improving mutation tracking for `push()` and `pop()`
-- adding checkpointed replay for faster rewinds on long runs
-- drafting a formal language spec and reference manual
+- faster rewind checkpoints for long histories
+- richer mutation tracking for arrays and maps
+- AST export and introspection tooling
+- formal language reference and standard library documentation
+
+## Current caveats
+
+Wend prioritizes simplicity and replayability today, so a few tradeoffs remain:
+
+- very long histories can be slower to rewind than short runs
+- low-level mutation operations like `push()` are not fully traced in history yet
+- the interpreter trades raw performance for clarity and deterministic replay
 
 ## License
 
-This project is released under the MIT License.
+MIT
 
 ## Contributing
 
-Contributions are welcome. If you would like to improve the runtime, expand the standard library, or help shape the language design, open an issue or start a discussion.
+Contributions are welcome. If you want to improve the runtime, add built-in helpers, or help shape Wend’s language design, open an issue or start a discussion.

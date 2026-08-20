@@ -1,0 +1,17 @@
+// Data summary example
+// Run with: node wendcli.js examples/data-summary.wend --input examples/sample-data.json
+
+let paid = input |> filter(fn (o) { o.status == "paid" })
+let summary = keys(input |> group_by(fn (o) { o.region }))
+  |> map(fn (region) {
+    let rows = paid |> filter(fn (o) { o.region == region })
+    {
+      region: region,
+      orders: len(rows),
+      revenue: rows |> map(fn (o) { o.total }) |> sum(),
+    }
+  })
+  |> sort_by(fn (row) { -row.revenue })
+
+print("Revenue by region:")
+table(summary)

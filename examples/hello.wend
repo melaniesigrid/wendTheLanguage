@@ -1,0 +1,5 @@
+// Hello from Wend
+// Run with: node wendcli.js examples/hello.wend
+
+let greeting = "Hello, Wend!"
+print(greeting)

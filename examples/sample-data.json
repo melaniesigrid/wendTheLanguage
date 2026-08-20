@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "customer": "Nia",
+    "region": "east",
+    "total": 82.5,
+    "status": "paid"
+  },
+  {
+    "id": 2,
+    "customer": "Omar",
+    "region": "west",
+    "total": 129.0,
+    "status": "paid"
+  },
+  {
+    "id": 3,
+    "customer": "Priya",
+    "region": "east",
+    "total": 43.25,
+    "status": "refunded"
+  }
+]

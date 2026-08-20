@@ -1,0 +1,24 @@
+{
+  "name": "wend-the-language",
+  "version": "0.1.0",
+  "description": "Wend is a small programming language with deterministic replay and history-driven debugging.",
+  "main": "src/wend-runtime.js",
+  "bin": {
+    "wend": "wendcli.js"
+  },
+  "scripts": {
+    "test": "node test/run-tests.js"
+  },
+  "keywords": [
+    "language",
+    "debugging",
+    "replay",
+    "interpreter",
+    "data",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
